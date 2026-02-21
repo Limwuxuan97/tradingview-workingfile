@@ -1,0 +1,504 @@
+SCRIPT 1: BABA Macro Cycle Navigator (Strategy)
+// ============================================================================
+// BABA MACRO CYCLE NAVIGATOR v2.0
+// Combines: Technicals + 41-Month Kitchin Cycle + Liquidity/Macro + Entry Signals
+// Optimized for TradingView Free/Basic (max 3 request.security calls)
+// ============================================================================
+
+//@version=6
+strategy("BABA Macro Cycle Navigator", 
+     overlay=true, 
+     default_qty_type=strategy.percent_of_equity, 
+     default_qty_value=10,
+     initial_capital=100000,
+     commission_type=strategy.commission.percent,
+     commission_value=0.1,
+     pyramiding=3,
+     calc_on_every_tick=false)
+
+// ============================================================================
+// SECTION 1: USER INPUTS
+// ============================================================================
+
+grp_tech        = "══════ TECHNICAL SETTINGS ══════"
+emaFast         = input.int(21,    "Fast EMA",           minval=5,   maxval=50,  group=grp_tech)
+emaSlow         = input.int(55,    "Slow EMA",           minval=20,  maxval=200, group=grp_tech)
+emaLongTrend    = input.int(200,   "Long-Term EMA",      minval=100, maxval=300, group=grp_tech)
+rsiLen          = input.int(14,    "RSI Length",          minval=5,   maxval=30,  group=grp_tech)
+rsiOversold     = input.int(30,    "RSI Oversold",        minval=15,  maxval=40,  group=grp_tech)
+rsiOverbought   = input.int(70,    "RSI Overbought",      minval=60,  maxval=85,  group=grp_tech)
+macdFast        = input.int(12,    "MACD Fast",           minval=5,   maxval=20,  group=grp_tech)
+macdSlow        = input.int(26,    "MACD Slow",           minval=15,  maxval=40,  group=grp_tech)
+macdSig         = input.int(9,     "MACD Signal",         minval=5,   maxval=15,  group=grp_tech)
+bbLen           = input.int(20,    "Bollinger Length",     minval=10,  maxval=50,  group=grp_tech)
+bbMult          = input.float(2.0, "Bollinger Multiplier", minval=1.0, maxval=3.0, step=0.1, group=grp_tech)
+volLen          = input.int(20,    "Volume MA Length",     minval=5,   maxval=50,  group=grp_tech)
+
+grp_cycle       = "══════ KITCHIN CYCLE SETTINGS ══════"
+kitchinMonths   = input.float(41.0,  "Kitchin Cycle Length (months)", minval=30.0, maxval=50.0, step=0.5, group=grp_cycle)
+cycleAnchorDate = input.time(timestamp("2023-06-01"), "Cycle Trough Anchor Date (last known trough)", group=grp_cycle, tooltip="Set to the most recent known Kitchin cycle trough. Default: Jun 2023 (China PPI trough). Adjust based on your analysis.")
+cycleWeight     = input.float(25.0,  "Kitchin Cycle Weight in Score (%)", minval=0.0, maxval=50.0, step=5.0, group=grp_cycle)
+
+grp_macro       = "══════ MACRO / LIQUIDITY SETTINGS ══════"
+macroWeight     = input.float(25.0,  "Macro Weight in Score (%)",    minval=0.0, maxval=50.0, step=5.0, group=grp_macro)
+dxyTicker       = input.string("DXY", "DXY Ticker",                group=grp_macro, tooltip="US Dollar Index. Weak DXY = bullish for BABA")
+m2Ticker        = input.string("ECONOMICS:USM2",  "Global M2 Proxy Ticker", group=grp_macro, tooltip="US M2 Money Supply as liquidity proxy")
+copGoldTicker   = input.string("COPPER/GOLD", "Copper/Gold Ratio Ticker", group=grp_macro, tooltip="Rising copper/gold = risk-on = bullish")
+macroSmaLen     = input.int(63,    "Macro SMA Length (bars)",       minval=20, maxval=200, group=grp_macro, tooltip="~3 months on daily. Used to determine macro trend direction.")
+
+grp_signal      = "══════ SIGNAL / STRATEGY SETTINGS ══════"
+techWeight      = input.float(50.0,  "Technical Weight in Score (%)", minval=0.0, maxval=100.0, step=5.0, group=grp_signal)
+buyThreshold    = input.float(60.0,  "Buy Signal Threshold",         minval=40.0, maxval=80.0, step=5.0, group=grp_signal)
+sellThreshold   = input.float(35.0,  "Sell Signal Threshold",        minval=10.0, maxval=50.0, step=5.0, group=grp_signal)
+useKellyCriterion = input.bool(true, "Use Kelly Criterion Position Sizing", group=grp_signal, tooltip="Adjusts position size based on signal conviction")
+showDashboard   = input.bool(true,   "Show Dashboard Table",         group=grp_signal)
+showSignalArrows = input.bool(true,  "Show Buy/Sell Arrows",         group=grp_signal)
+
+
+// ============================================================================
+// SECTION 2: TECHNICAL ANALYSIS MODULE
+// ============================================================================
+
+ema21  = ta.ema(close, emaFast)
+ema55  = ta.ema(close, emaSlow)
+ema200 = ta.ema(close, emaLongTrend)
+
+emaBullish      = ema21 > ema55
+emaTrendUp      = close > ema200
+emaCrossUp      = ta.crossover(ema21, ema55)
+emaCrossDown    = ta.crossunder(ema21, ema55)
+
+rsiVal          = ta.rsi(close, rsiLen)
+rsiSmooth       = rsiVal < rsiOversold ? math.max(70.0, 100.0 - (rsiOversold - rsiVal) * 2.0) : rsiVal > rsiOverbought ? math.min(30.0, (rsiOverbought - rsiVal) * 2.0 + 0.0) : 50.0 - (rsiVal - 50.0) * 2.0
+rsiSmooth2      = math.max(0.0, math.min(100.0, rsiSmooth))
+
+[macdLine, signalLine, histLine] = ta.macd(close, macdFast, macdSlow, macdSig)
+macdBullish     = macdLine > signalLine
+macdCrossUp     = ta.crossover(macdLine, signalLine)
+macdCrossDown   = ta.crossunder(macdLine, signalLine)
+macdScore       = macdBullish ? (histLine > histLine[1] ? 80.0 : 65.0) : (histLine < histLine[1] ? 20.0 : 35.0)
+
+bbBasis         = ta.sma(close, bbLen)
+bbDev           = ta.stdev(close, bbLen)
+bbUpper         = bbBasis + bbMult * bbDev
+bbLower         = bbBasis - bbMult * bbDev
+bbWidth         = (bbUpper - bbLower) / bbBasis * 100.0
+bbWidthSMA      = ta.sma(bbWidth, bbLen)
+bbSqueeze       = bbWidth < bbWidthSMA * 0.75
+bbPctB          = (close - bbLower) / (bbUpper - bbLower) * 100.0
+bbScore         = bbPctB < 10.0 ? 85.0 : bbPctB > 90.0 ? 15.0 : 50.0 - (bbPctB - 50.0) * 0.7
+
+volSMA          = ta.sma(volume, volLen)
+volRatio        = volume / volSMA
+volSurge        = volRatio > 1.5
+volDry          = volRatio < 0.5
+volConfirmBull  = close > close[1] and volRatio > 1.2
+volConfirmBear  = close < close[1] and volRatio > 1.2
+
+emaCompScore    = (emaBullish ? 30.0 : 0.0) + (emaTrendUp ? 30.0 : 0.0) + (emaCrossUp ? 40.0 : emaCrossDown ? 0.0 : 20.0)
+emaCompNorm     = math.min(100.0, emaCompScore)
+
+techScore       = (emaCompNorm * 0.30) + (rsiSmooth2 * 0.25) + (macdScore * 0.25) + (bbScore * 0.20)
+techScore2      = math.max(0.0, math.min(100.0, techScore))
+
+
+// ============================================================================
+// SECTION 3: KITCHIN 41-MONTH CYCLE MODULE
+// ============================================================================
+
+daysSinceAnchor = (time - cycleAnchorDate) / (24.0 * 60.0 * 60.0 * 1000.0)
+cycleLengthDays = kitchinMonths * 30.44
+
+cyclePhase      = (daysSinceAnchor % cycleLengthDays) / cycleLengthDays * 2.0 * math.pi
+cycleSine       = math.sin(cyclePhase - math.pi / 2.0)
+
+cyclePosition   = (daysSinceAnchor % cycleLengthDays) / cycleLengthDays
+
+cycleScore = cyclePosition < 0.10 ? 60.0 + cyclePosition / 0.10 * 30.0 :
+             cyclePosition < 0.25 ? 90.0 - (cyclePosition - 0.10) / 0.15 * 20.0 :
+             cyclePosition < 0.50 ? 70.0 - (cyclePosition - 0.25) / 0.25 * 30.0 :
+             cyclePosition < 0.75 ? 40.0 - (cyclePosition - 0.50) / 0.25 * 25.0 :
+             15.0 + (cyclePosition - 0.75) / 0.25 * 45.0
+
+cyclePhaseLabel = cyclePosition < 0.10 ? "LATE CONTRACTION" :
+                  cyclePosition < 0.25 ? "TROUGH / ACCUMULATE" :
+                  cyclePosition < 0.40 ? "EARLY EXPANSION" :
+                  cyclePosition < 0.55 ? "MID EXPANSION" :
+                  cyclePosition < 0.70 ? "LATE EXPANSION / PEAK" :
+                  cyclePosition < 0.85 ? "EARLY CONTRACTION" :
+                  "LATE CONTRACTION"
+
+monthsIntoCycle = cyclePosition * kitchinMonths
+monthsToTrough  = (1.0 - cyclePosition) * kitchinMonths
+
+
+// ============================================================================
+// SECTION 4: MACRO / LIQUIDITY MODULE
+// ============================================================================
+
+dxyClose = request.security(dxyTicker, timeframe.period, close, barmerge.gaps_off, barmerge.lookahead_off)
+dxySMA   = ta.sma(dxyClose, macroSmaLen)
+dxyFalling = dxyClose < dxySMA
+dxyScore = dxyFalling ? 65.0 + math.min(35.0, (dxySMA - dxyClose) / dxySMA * 1000.0) : 35.0 - math.min(35.0, (dxyClose - dxySMA) / dxySMA * 1000.0)
+dxyScore2 = math.max(0.0, math.min(100.0, dxyScore))
+
+m2Close  = request.security(m2Ticker, timeframe.period, close, barmerge.gaps_off, barmerge.lookahead_off)
+m2SMA    = ta.sma(m2Close, macroSmaLen)
+m2Expanding = m2Close > m2SMA
+m2Score  = m2Expanding ? 65.0 + math.min(35.0, (m2Close - m2SMA) / m2SMA * 500.0) : 35.0 - math.min(35.0, (m2SMA - m2Close) / m2SMA * 500.0)
+m2Score2 = math.max(0.0, math.min(100.0, m2Score))
+
+copGoldClose = request.security(copGoldTicker, timeframe.period, close, barmerge.gaps_off, barmerge.lookahead_off)
+copGoldSMA   = ta.sma(copGoldClose, macroSmaLen)
+copGoldRising = copGoldClose > copGoldSMA
+copGoldScore = copGoldRising ? 65.0 + math.min(35.0, (copGoldClose - copGoldSMA) / copGoldSMA * 500.0) : 35.0 - math.min(35.0, (copGoldSMA - copGoldClose) / copGoldSMA * 500.0)
+copGoldScore2 = math.max(0.0, math.min(100.0, copGoldScore))
+
+macroScore = (dxyScore2 * 0.40) + (m2Score2 * 0.35) + (copGoldScore2 * 0.25)
+macroScore2 = math.max(0.0, math.min(100.0, macroScore))
+
+
+// ============================================================================
+// SECTION 5: COMPOSITE SIGNAL GENERATOR
+// ============================================================================
+
+totalWeight   = techWeight + cycleWeight + macroWeight
+techWNorm     = techWeight / totalWeight * 100.0
+cycleWNorm    = cycleWeight / totalWeight * 100.0
+macroWNorm    = macroWeight / totalWeight * 100.0
+
+compositeScore = (techScore2 * techWNorm / 100.0) + 
+                 (cycleScore * cycleWNorm / 100.0) + 
+                 (macroScore2 * macroWNorm / 100.0)
+
+compositeSmooth = ta.ema(compositeScore, 5)
+
+isBuySignal     = compositeSmooth > buyThreshold and compositeSmooth[1] <= buyThreshold
+isSellSignal    = compositeSmooth < sellThreshold and compositeSmooth[1] >= sellThreshold
+isStrongBuy     = compositeSmooth > 75.0 and techScore2 > 60.0 and cycleScore > 65.0
+isStrongSell    = compositeSmooth < 25.0 and techScore2 < 40.0 and cycleScore < 35.0
+
+conviction = compositeSmooth > 80.0 ? "VERY STRONG BUY" :
+             compositeSmooth > buyThreshold ? "BUY" :
+             compositeSmooth > 50.0 ? "LEAN BULLISH" :
+             compositeSmooth > sellThreshold ? "NEUTRAL" :
+             compositeSmooth > 20.0 ? "SELL" :
+             "VERY STRONG SELL"
+
+estWinRate    = compositeSmooth / 100.0
+estPayoff     = 2.0
+kellyFraction = useKellyCriterion ? math.max(0.0, (estWinRate * estPayoff - (1.0 - estWinRate)) / estPayoff) : 0.10
+kellyPct      = math.min(0.25, kellyFraction) * 100.0
+
+
+// ============================================================================
+// SECTION 6: STRATEGY EXECUTION
+// ============================================================================
+
+longCondition   = isBuySignal or (isStrongBuy and strategy.position_size == 0)
+exitCondition   = isSellSignal or isStrongSell
+
+posSize = useKellyCriterion ? kellyPct : 10.0
+
+if longCondition
+    strategy.entry("Long", strategy.long, qty=strategy.equity * posSize / 100.0 / close)
+
+if exitCondition
+    strategy.close("Long")
+
+strategy.exit("Trail Stop", "Long", trail_points=close * 0.15 / syminfo.mintick, trail_offset=close * 0.05 / syminfo.mintick)
+
+
+// ============================================================================
+// SECTION 7: VISUAL OVERLAYS
+// ============================================================================
+
+plot(ema21,  "EMA 21",  color=color.new(color.blue, 30),   linewidth=1)
+plot(ema55,  "EMA 55",  color=color.new(color.orange, 30),  linewidth=1)
+plot(ema200, "EMA 200", color=color.new(color.gray, 30),    linewidth=2)
+
+p_bbU = plot(bbUpper, "BB Upper", color=color.new(color.purple, 70))
+p_bbL = plot(bbLower, "BB Lower", color=color.new(color.purple, 70))
+fill(p_bbU, p_bbL, color=bbSqueeze ? color.new(color.yellow, 85) : color.new(color.purple, 92), title="BB Fill")
+
+plotshape(showSignalArrows and isBuySignal,   title="Buy Signal",    style=shape.triangleup,   location=location.belowbar, color=color.new(color.green, 0),  size=size.normal, text="BUY")
+plotshape(showSignalArrows and isStrongBuy,   title="Strong Buy",    style=shape.triangleup,   location=location.belowbar, color=color.new(color.lime, 0),   size=size.large,  text="STRONG\nBUY")
+plotshape(showSignalArrows and isSellSignal,  title="Sell Signal",   style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0),    size=size.normal, text="SELL")
+plotshape(showSignalArrows and isStrongSell,  title="Strong Sell",   style=shape.triangledown, location=location.abovebar, color=color.new(color.maroon, 0), size=size.large,  text="STRONG\nSELL")
+
+bgcolor(compositeSmooth > 75.0 ? color.new(color.green, 90) : 
+        compositeSmooth > buyThreshold ? color.new(color.green, 95) : 
+        compositeSmooth < 20.0 ? color.new(color.red, 88) : 
+        compositeSmooth < sellThreshold ? color.new(color.red, 93) : 
+        color.new(color.gray, 97), 
+        title="Signal Background")
+
+barcolor(cyclePosition < 0.25 ? color.new(color.green, 30) :
+         cyclePosition < 0.50 ? color.new(color.blue, 50) :
+         cyclePosition < 0.75 ? color.new(color.orange, 30) :
+         color.new(color.red, 40),
+         title="Kitchin Cycle Bar Color")
+
+
+// ============================================================================
+// SECTION 8: DASHBOARD TABLE
+// ============================================================================
+
+if showDashboard and barstate.islast
+    var table dash = table.new(position.top_right, 3, 16, 
+         bgcolor=color.new(color.black, 10), 
+         border_color=color.new(color.gray, 50), 
+         border_width=1,
+         frame_color=color.new(color.white, 30),
+         frame_width=2)
+    
+    table.cell(dash, 0, 0, "BABA MACRO CYCLE NAVIGATOR", 
+         text_color=color.white, text_size=size.normal, bgcolor=color.new(#FF8C00, 0), text_halign=text.align_center)
+    table.merge_cells(dash, 0, 0, 2, 0)
+    
+    table.cell(dash, 0, 1, "TECHNICALS", text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.small)
+    table.cell(dash, 1, 1, "Score",       text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.small)
+    table.cell(dash, 2, 1, "Signal",      text_color=color.white, bgcolor=color.new(color.blue, 20), text_size=size.small)
+    
+    table.cell(dash, 0, 2, "EMA (21/55/200)", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 2, str.tostring(emaCompNorm, "#.0"), text_color=emaCompNorm > 50 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 2, 2, emaBullish ? (emaTrendUp ? "▲ Bull Trend" : "▲ Bull Cross") : "▼ Bearish", text_color=emaBullish ? color.lime : color.red, text_size=size.tiny)
+    
+    table.cell(dash, 0, 3, "RSI (" + str.tostring(rsiLen) + ")", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 3, str.tostring(rsiVal, "#.1"), text_color=rsiVal < rsiOversold ? color.lime : rsiVal > rsiOverbought ? color.red : color.white, text_size=size.tiny)
+    table.cell(dash, 2, 3, rsiVal < rsiOversold ? "Oversold" : rsiVal > rsiOverbought ? "Overbought" : "Neutral", text_color=color.white, text_size=size.tiny)
+    
+    table.cell(dash, 0, 4, "MACD", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 4, str.tostring(macdScore, "#.0"), text_color=macdBullish ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 2, 4, macdBullish ? (histLine > histLine[1] ? "▲ Accelerating" : "▲ Bullish") : (histLine < histLine[1] ? "▼ Accelerating" : "▼ Bearish"), text_color=macdBullish ? color.lime : color.red, text_size=size.tiny)
+    
+    table.cell(dash, 0, 5, "Bollinger", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 5, str.tostring(bbScore, "#.0"), text_color=bbPctB < 20 ? color.lime : bbPctB > 80 ? color.red : color.white, text_size=size.tiny)
+    table.cell(dash, 2, 5, bbSqueeze ? "SQUEEZE" : (bbPctB < 20 ? "Near Lower" : bbPctB > 80 ? "Near Upper" : "Mid-Band"), text_color=bbSqueeze ? color.yellow : color.white, text_size=size.tiny)
+    
+    techBg = techScore2 > 65 ? color.new(color.green, 70) : techScore2 < 35 ? color.new(color.red, 70) : color.new(color.gray, 70)
+    table.cell(dash, 0, 6, "TECH COMPOSITE", text_color=color.white, bgcolor=techBg, text_size=size.small, text_halign=text.align_left)
+    table.cell(dash, 1, 6, str.tostring(techScore2, "#.1") + " / 100", text_color=color.white, bgcolor=techBg, text_size=size.small)
+    table.cell(dash, 2, 6, "Weight: " + str.tostring(techWNorm, "#.0") + "%", text_color=color.white, bgcolor=techBg, text_size=size.small)
+    
+    table.cell(dash, 0, 7, "KITCHIN CYCLE", text_color=color.white, bgcolor=color.new(#FF8C00, 20), text_size=size.small)
+    table.cell(dash, 1, 7, "Score",           text_color=color.white, bgcolor=color.new(#FF8C00, 20), text_size=size.small)
+    table.cell(dash, 2, 7, "Detail",          text_color=color.white, bgcolor=color.new(#FF8C00, 20), text_size=size.small)
+    
+    table.cell(dash, 0, 8, "Phase", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 8, cyclePhaseLabel, text_color=cyclePosition < 0.25 ? color.lime : cyclePosition < 0.50 ? color.aqua : cyclePosition < 0.75 ? color.orange : color.red, text_size=size.tiny)
+    table.cell(dash, 2, 8, str.tostring(monthsIntoCycle, "#.1") + " / " + str.tostring(kitchinMonths, "#.0") + " months", text_color=color.white, text_size=size.tiny)
+    
+    table.cell(dash, 0, 9, "Next Trough", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 9, str.tostring(monthsToTrough, "#.1") + " months", text_color=monthsToTrough < 6 ? color.lime : color.white, text_size=size.tiny)
+    table.cell(dash, 2, 9, cyclePosition > 0.85 ? "ACCUMULATE ZONE" : cyclePosition < 0.25 ? "TROUGH ZONE" : cyclePosition > 0.5 ? "DISTRIBUTION" : "EXPANSION", text_color=color.white, text_size=size.tiny)
+    
+    cycleBg = cycleScore > 65 ? color.new(color.green, 70) : cycleScore < 35 ? color.new(color.red, 70) : color.new(color.gray, 70)
+    table.cell(dash, 0, 10, "CYCLE COMPOSITE", text_color=color.white, bgcolor=cycleBg, text_size=size.small, text_halign=text.align_left)
+    table.cell(dash, 1, 10, str.tostring(cycleScore, "#.1") + " / 100", text_color=color.white, bgcolor=cycleBg, text_size=size.small)
+    table.cell(dash, 2, 10, "Weight: " + str.tostring(cycleWNorm, "#.0") + "%", text_color=color.white, bgcolor=cycleBg, text_size=size.small)
+    
+    table.cell(dash, 0, 11, "MACRO / LIQUIDITY", text_color=color.white, bgcolor=color.new(color.purple, 20), text_size=size.small)
+    table.cell(dash, 1, 11, "Score",               text_color=color.white, bgcolor=color.new(color.purple, 20), text_size=size.small)
+    table.cell(dash, 2, 11, "Signal",               text_color=color.white, bgcolor=color.new(color.purple, 20), text_size=size.small)
+    
+    table.cell(dash, 0, 12, "DXY (inverted)", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 12, str.tostring(dxyScore2, "#.1"), text_color=dxyFalling ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 2, 12, dxyFalling ? "Dollar Weak = Bullish" : "Dollar Strong = Bearish", text_color=dxyFalling ? color.lime : color.red, text_size=size.tiny)
+    
+    table.cell(dash, 0, 13, "M2 Liquidity", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 13, str.tostring(m2Score2, "#.1"), text_color=m2Expanding ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 2, 13, m2Expanding ? "Expanding = Bullish" : "Contracting = Bearish", text_color=m2Expanding ? color.lime : color.red, text_size=size.tiny)
+    
+    table.cell(dash, 0, 14, "Copper/Gold", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 14, str.tostring(copGoldScore2, "#.1"), text_color=copGoldRising ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 2, 14, copGoldRising ? "Risk-On = Bullish" : "Risk-Off = Bearish", text_color=copGoldRising ? color.lime : color.red, text_size=size.tiny)
+    
+    macroBg = macroScore2 > 65 ? color.new(color.green, 70) : macroScore2 < 35 ? color.new(color.red, 70) : color.new(color.gray, 70)
+    table.cell(dash, 0, 15, "MACRO COMPOSITE", text_color=color.white, bgcolor=macroBg, text_size=size.small, text_halign=text.align_left)
+    table.cell(dash, 1, 15, str.tostring(macroScore2, "#.1") + " / 100", text_color=color.white, bgcolor=macroBg, text_size=size.small)
+    table.cell(dash, 2, 15, "Weight: " + str.tostring(macroWNorm, "#.0") + "%", text_color=color.white, bgcolor=macroBg, text_size=size.small)
+
+if showDashboard and barstate.islast
+    var table summary = table.new(position.bottom_center, 5, 1,
+         bgcolor=color.new(color.black, 5),
+         border_color=color.new(color.gray, 50),
+         border_width=1,
+         frame_color=compositeSmooth > buyThreshold ? color.new(color.green, 0) : compositeSmooth < sellThreshold ? color.new(color.red, 0) : color.new(color.gray, 0),
+         frame_width=3)
+    
+    compBg = compositeSmooth > 75 ? color.new(color.green, 10) : compositeSmooth > buyThreshold ? color.new(color.green, 30) : compositeSmooth < 20 ? color.new(color.red, 10) : compositeSmooth < sellThreshold ? color.new(color.red, 30) : color.new(color.gray, 30)
+    
+    table.cell(summary, 0, 0, "COMPOSITE: " + str.tostring(compositeSmooth, "#.1"), 
+         text_color=color.white, bgcolor=compBg, text_size=size.normal)
+    table.cell(summary, 1, 0, conviction, 
+         text_color=compositeSmooth > buyThreshold ? color.lime : compositeSmooth < sellThreshold ? color.red : color.white, bgcolor=compBg, text_size=size.normal)
+    table.cell(summary, 2, 0, "Kelly: " + str.tostring(kellyPct, "#.1") + "%", 
+         text_color=color.yellow, bgcolor=compBg, text_size=size.normal)
+    table.cell(summary, 3, 0, "Cycle: " + cyclePhaseLabel, 
+         text_color=cyclePosition < 0.25 ? color.lime : cyclePosition > 0.65 ? color.orange : color.aqua, bgcolor=compBg, text_size=size.small)
+    table.cell(summary, 4, 0, "Trough in: " + str.tostring(monthsToTrough, "#.1") + "mo", 
+         text_color=monthsToTrough < 6 ? color.lime : color.white, bgcolor=compBg, text_size=size.small)
+
+
+// ============================================================================
+// SECTION 9: ALERTS
+// ============================================================================
+
+alertcondition(isBuySignal,   title="Buy Signal",         message="BABA Macro Cycle Navigator: BUY signal triggered. Composite score crossed above threshold.")
+alertcondition(isSellSignal,  title="Sell Signal",         message="BABA Macro Cycle Navigator: SELL signal triggered. Composite score crossed below threshold.")
+alertcondition(isStrongBuy,   title="Strong Buy Signal",   message="BABA Macro Cycle Navigator: STRONG BUY — All three modules bullish")
+alertcondition(isStrongSell,  title="Strong Sell Signal",  message="BABA Macro Cycle Navigator: STRONG SELL — All three modules bearish")
+alertcondition(bbSqueeze and compositeSmooth > 55, title="Squeeze + Bullish", message="BABA: Bollinger Squeeze with bullish composite — potential breakout")
+SCRIPT 2: BABA Cycle Oscillator (Companion Indicator)
+// ============================================================================
+// BABA MACRO CYCLE OSCILLATOR v2.0 (Companion Indicator)
+// Plots composite score, Kitchin sine wave, and macro sub-scores
+// in a separate pane below the chart
+// ============================================================================
+
+//@version=6
+indicator("BABA Cycle Oscillator", overlay=false, precision=1)
+
+// ============================================================================
+// INPUTS (keep in sync with strategy)
+// ============================================================================
+
+grp_tech        = "══════ TECHNICAL ══════"
+emaFast         = input.int(21,    "Fast EMA",       group=grp_tech)
+emaSlow         = input.int(55,    "Slow EMA",       group=grp_tech)
+emaLongTrend    = input.int(200,   "Long EMA",       group=grp_tech)
+rsiLen          = input.int(14,    "RSI Length",      group=grp_tech)
+macdFast        = input.int(12,    "MACD Fast",      group=grp_tech)
+macdSlow        = input.int(26,    "MACD Slow",      group=grp_tech)
+macdSig         = input.int(9,     "MACD Signal",    group=grp_tech)
+bbLen           = input.int(20,    "BB Length",       group=grp_tech)
+
+grp_cycle       = "══════ KITCHIN CYCLE ══════"
+kitchinMonths   = input.float(41.0, "Cycle Length (months)", group=grp_cycle)
+cycleAnchorDate = input.time(timestamp("2023-06-01"), "Trough Anchor Date", group=grp_cycle)
+cycleWeight     = input.float(25.0, "Cycle Weight %", group=grp_cycle)
+
+grp_macro       = "══════ MACRO ══════"
+macroWeight     = input.float(25.0, "Macro Weight %", group=grp_macro)
+dxyTicker       = input.string("DXY", "DXY Ticker", group=grp_macro)
+m2Ticker        = input.string("ECONOMICS:USM2", "M2 Ticker", group=grp_macro)
+copGoldTicker   = input.string("COPPER/GOLD", "Copper/Gold Ticker", group=grp_macro)
+macroSmaLen     = input.int(63, "Macro SMA Length", group=grp_macro)
+
+grp_signal      = "══════ SIGNALS ══════"
+techWeight      = input.float(50.0, "Tech Weight %", group=grp_signal)
+buyThreshold    = input.float(60.0, "Buy Threshold", group=grp_signal)
+sellThreshold   = input.float(35.0, "Sell Threshold", group=grp_signal)
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+
+ema21  = ta.ema(close, emaFast)
+ema55  = ta.ema(close, emaSlow)
+ema200 = ta.ema(close, emaLongTrend)
+emaBullish = ema21 > ema55
+emaTrendUp = close > ema200
+emaScore = (emaBullish ? 30.0 : 0.0) + (emaTrendUp ? 30.0 : 0.0) + 20.0
+emaScore2 = math.min(100.0, emaScore)
+
+rsiVal = ta.rsi(close, rsiLen)
+rsiSmooth = rsiVal < 30 ? math.max(70.0, 100.0 - (30 - rsiVal) * 2.0) : rsiVal > 70 ? math.min(30.0, (70 - rsiVal) * 2.0) : 50.0 - (rsiVal - 50.0) * 2.0
+rsiSmooth2 = math.max(0.0, math.min(100.0, rsiSmooth))
+
+[macdLine, signalLine, histLine] = ta.macd(close, macdFast, macdSlow, macdSig)
+macdBullish = macdLine > signalLine
+macdScore = macdBullish ? (histLine > histLine[1] ? 80.0 : 65.0) : (histLine < histLine[1] ? 20.0 : 35.0)
+
+bbBasis = ta.sma(close, bbLen)
+bbDev = ta.stdev(close, bbLen)
+bbUpper = bbBasis + 2.0 * bbDev
+bbLower = bbBasis - 2.0 * bbDev
+bbPctB = (close - bbLower) / (bbUpper - bbLower) * 100.0
+bbScore = bbPctB < 10.0 ? 85.0 : bbPctB > 90.0 ? 15.0 : 50.0 - (bbPctB - 50.0) * 0.7
+
+techScore = (emaScore2 * 0.30) + (rsiSmooth2 * 0.25) + (macdScore * 0.25) + (bbScore * 0.20)
+techScore2 = math.max(0.0, math.min(100.0, techScore))
+
+daysSinceAnchor = (time - cycleAnchorDate) / (24.0 * 60.0 * 60.0 * 1000.0)
+cycleLengthDays = kitchinMonths * 30.44
+cyclePosition = (daysSinceAnchor % cycleLengthDays) / cycleLengthDays
+cycleSine = math.sin(cyclePosition * 2.0 * math.pi - math.pi / 2.0)
+cycleSineNorm = (cycleSine + 1.0) / 2.0 * 100.0
+
+cycleScore = cyclePosition < 0.10 ? 60.0 + cyclePosition / 0.10 * 30.0 :
+             cyclePosition < 0.25 ? 90.0 - (cyclePosition - 0.10) / 0.15 * 20.0 :
+             cyclePosition < 0.50 ? 70.0 - (cyclePosition - 0.25) / 0.25 * 30.0 :
+             cyclePosition < 0.75 ? 40.0 - (cyclePosition - 0.50) / 0.25 * 25.0 :
+             15.0 + (cyclePosition - 0.75) / 0.25 * 45.0
+
+dxyClose = request.security(dxyTicker, timeframe.period, close, barmerge.gaps_off, barmerge.lookahead_off)
+dxySMA = ta.sma(dxyClose, macroSmaLen)
+dxyFalling = dxyClose < dxySMA
+dxyScore2 = math.max(0.0, math.min(100.0, dxyFalling ? 65.0 + math.min(35.0, (dxySMA - dxyClose) / dxySMA * 1000.0) : 35.0 - math.min(35.0, (dxyClose - dxySMA) / dxySMA * 1000.0)))
+
+m2Close = request.security(m2Ticker, timeframe.period, close, barmerge.gaps_off, barmerge.lookahead_off)
+m2SMA = ta.sma(m2Close, macroSmaLen)
+m2Expanding = m2Close > m2SMA
+m2Score2 = math.max(0.0, math.min(100.0, m2Expanding ? 65.0 + math.min(35.0, (m2Close - m2SMA) / m2SMA * 500.0) : 35.0 - math.min(35.0, (m2SMA - m2Close) / m2SMA * 500.0)))
+
+copGoldClose = request.security(copGoldTicker, timeframe.period, close, barmerge.gaps_off, barmerge.lookahead_off)
+copGoldSMA = ta.sma(copGoldClose, macroSmaLen)
+copGoldRising = copGoldClose > copGoldSMA
+copGoldScore2 = math.max(0.0, math.min(100.0, copGoldRising ? 65.0 + math.min(35.0, (copGoldClose - copGoldSMA) / copGoldSMA * 500.0) : 35.0 - math.min(35.0, (copGoldSMA - copGoldClose) / copGoldSMA * 500.0)))
+
+macroScore = (dxyScore2 * 0.40) + (m2Score2 * 0.35) + (copGoldScore2 * 0.25)
+macroScore2 = math.max(0.0, math.min(100.0, macroScore))
+
+totalWeight = techWeight + cycleWeight + macroWeight
+compositeScore = (techScore2 * techWeight / totalWeight) + (cycleScore * cycleWeight / totalWeight) + (macroScore2 * macroWeight / totalWeight)
+compositeSmooth = ta.ema(compositeScore, 5)
+
+// ============================================================================
+// PLOTS
+// ============================================================================
+
+hline(buyThreshold,  "Buy Threshold",  color=color.new(color.green, 50), linestyle=hline.style_dashed)
+hline(sellThreshold, "Sell Threshold", color=color.new(color.red, 50),   linestyle=hline.style_dashed)
+hline(50,            "Neutral",        color=color.new(color.gray, 70),  linestyle=hline.style_dotted)
+hline(75,            "Strong Buy",     color=color.new(color.lime, 70),  linestyle=hline.style_dotted)
+hline(25,            "Strong Sell",    color=color.new(color.maroon, 70),linestyle=hline.style_dotted)
+
+compColor = compositeSmooth > buyThreshold ? color.green : compositeSmooth < sellThreshold ? color.red : color.gray
+plot(compositeSmooth, "Composite Score", color=compColor, linewidth=3, style=plot.style_line)
+
+plot(techScore2,   "Tech Score",   color=color.new(color.blue, 40),   linewidth=1)
+plot(cycleScore,   "Cycle Score",  color=color.new(color.orange, 40), linewidth=1)
+plot(macroScore2,  "Macro Score",  color=color.new(color.purple, 40), linewidth=1)
+
+plot(cycleSineNorm, "Kitchin Sine", color=color.new(color.yellow, 50), linewidth=1, style=plot.style_area)
+
+p_comp = plot(compositeSmooth, display=display.none)
+p_buy  = plot(buyThreshold, display=display.none)
+p_sell = plot(sellThreshold, display=display.none)
+fill(p_comp, p_buy, compositeSmooth > buyThreshold ? color.new(color.green, 85) : na, title="Bullish Zone")
+fill(p_comp, p_sell, compositeSmooth < sellThreshold ? color.new(color.red, 85) : na, title="Bearish Zone")
+
+isBuySignal = compositeSmooth > buyThreshold and compositeSmooth[1] <= buyThreshold
+isSellSignal = compositeSmooth < sellThreshold and compositeSmooth[1] >= sellThreshold
+plotshape(isBuySignal, "Buy Cross", shape.circle, location.absolute, color.lime, size=size.small)
+plotshape(isSellSignal, "Sell Cross", shape.circle, location.absolute, color.red, size=size.small)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+alertcondition(isBuySignal, title="Buy Signal", message="BABA Oscillator: Composite crossed above buy threshold")
+alertcondition(isSellSignal, title="Sell Signal", message="BABA Oscillator: Composite crossed below sell threshold")
+How to use:
+
+Script 1 → TradingView Pine Editor → New Strategy → paste → Add to Chart
+Script 2 → Pine Editor → New Indicator → paste → Add to Chart
+Search BABA on NYSE, switch to Daily chart
+The strategy shows buy/sell arrows + dashboard on the main chart
+The oscillator shows the composite score line + sub-scores in a bottom pane
+If any ticker doesn't load (Free plan limitations), go to Settings and try these alternatives:
+
+ECONOMICS:USM2 → try FRED:M2SL or FRED:WM2NS
+COPPER/GOLD → try COMEX:HG1!/TVC:GOLD
+DXY → try TVC:DXY or USDOLLAR
