@@ -201,25 +201,55 @@ def scan_ep(df: pd.DataFrame, ticker: str, spy_close: pd.Series,
     current_date = df.index[row_idx]
     prev_close = close.iloc[row_idx - 1]
 
-    # 1. Gap detection
-    current_open = df["open"].iloc[row_idx]
-    _gap = (current_open - prev_close) / prev_close * 100.0 if prev_close > 0 else 0
-    if abs(_gap) < QMAG.ep_min_gap_pct:  # Strict 10% gap requirement
-        return None
+    # 1. Gap detection (and OpEx deferral logic)
+    from algo.indicators import is_opex_settlement_window
+    
+    gap_idx = row_idx
+    gap_open = df["open"].iloc[gap_idx]
+    prev_close = close.iloc[gap_idx - 1]
+    _gap = (gap_open - prev_close) / prev_close * 100.0 if prev_close > 0 else 0
+    
+    if abs(_gap) >= QMAG.ep_min_gap_pct:
+        # Gap is today. Check if today is a forced MM settlement window (T+1/T+2 post OpEx)
+        if is_opex_settlement_window(current_date):
+            return None  # Defer entry. Do not buy into the forced settlement pump.
+    else:
+        # No gap today. Check if there was a gap 1-2 days ago during the OpEx window, and we are now on T+3/T+4
+        found_deferred_gap = False
+        for offset in [1, 2]:
+            temp_idx = row_idx - offset
+            if temp_idx < 1: continue
+            temp_date = df.index[temp_idx]
+            
+            if is_opex_settlement_window(temp_date):
+                t_open = df["open"].iloc[temp_idx]
+                t_prev = close.iloc[temp_idx - 1]
+                t_gap = (t_open - t_prev) / t_prev * 100.0 if t_prev > 0 else 0
+                
+                if abs(t_gap) >= QMAG.ep_min_gap_pct:
+                    # Found a valid deferred gap. Check if price held the gap.
+                    if current_close >= t_open * 0.98:  # Price must basically hold the gap
+                        gap_idx = temp_idx
+                        _gap = t_gap
+                        found_deferred_gap = True
+                        break
+        
+        if not found_deferred_gap:
+            return None
 
-    # 2. Relative volume
-    _rvol = relative_volume(vol, 50).iloc[row_idx]
+    # 2. Relative volume (measured on the gap day)
+    _rvol = relative_volume(vol, 50).iloc[gap_idx]
     if pd.isna(_rvol) or _rvol < QMAG.ep_min_rvol:  # Strict 2x relative volume requirement
         return None
 
     # 3. Average volume
-    avg_vol = sma(vol, 50).iloc[row_idx]
+    avg_vol = sma(vol, 50).iloc[gap_idx]
     if pd.isna(avg_vol) or avg_vol < QMAG.ep_min_avg_volume:
         return None
 
     # 4. Flat prior base (3-6 months before the gap)
-    base_start = max(0, row_idx - 130)  # ~6 months
-    base_end = row_idx - 1
+    base_start = max(0, gap_idx - 130)  # ~6 months
+    base_end = gap_idx - 1
     base_data = df.iloc[base_start:base_end]
 
     if len(base_data) < 60:
@@ -253,9 +283,9 @@ def scan_ep(df: pd.DataFrame, ticker: str, spy_close: pd.Series,
     score += min(15, rs_pct * 15) if rs_pct > 0 else 0
 
     # Entry: high of day (HOD breakout)
-    entry_price = df["high"].iloc[row_idx]
+    entry_price = df["high"].iloc[gap_idx]
     # Stop: low of gap day
-    stop_price = df["low"].iloc[row_idx] * 0.99
+    stop_price = df["low"].iloc[gap_idx] * 0.99
     risk_pct = (entry_price - stop_price) / entry_price * 100 if entry_price > 0 else 100
 
     # === EARNINGS CATALYST BONUS (additive only, never subtractive) ===

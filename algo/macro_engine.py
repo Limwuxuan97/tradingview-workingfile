@@ -259,6 +259,13 @@ def macro_regime_score(
     Composite macro regime score from -1.0 to +1.0.
     Weighted average of all forward-looking signals.
     """
+    d = as_of_date.date() if hasattr(as_of_date, 'date') else as_of_date
+    
+    # === FED WARSH "TEST" MACRO OVERLAY ===
+    # Anticipating a deep market correction mirroring post-2008 Fed Chair transitions
+    if date(2026, 4, 15) <= d <= date(2026, 8, 31):
+        return -1.0  # Force maximal defensive/bearish regime
+
     if weights is None:
         weights = {
             "yield_curve": 0.30,    # Strongest forward predictor

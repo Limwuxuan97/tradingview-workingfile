@@ -405,6 +405,38 @@ def cme_t35_score_adjustment(as_of_date) -> float:
 
 
 # ============================================================================
+# MONTHLY OPEX T+1 / T+2 SETTLEMENT WINDOW (The Post-OpEx Pump)
+# ============================================================================
+
+def monthly_opex_expiry(year: int, month: int) -> date:
+    """Find the 3rd Friday of a given month (Standard Options Expiration - OpEx)."""
+    from datetime import timedelta
+    first_day = date(year, month, 1)
+    weekday = first_day.weekday()  # 0=Monday, 4=Friday
+    first_friday = first_day + timedelta(days=(4 - weekday) % 7)
+    third_friday = first_friday + timedelta(days=14)
+    return third_friday
+
+def is_opex_settlement_window(as_of_date) -> bool:
+    """
+    Check if the current date is the Monday or Tuesday following a monthly OpEx.
+    With T+1 settlement for options exercise delivery, Market Makers are forced
+    to buy/deliver shares on T+1 (Monday) and T+2 (Tuesday), causing artificial pumps.
+    Returns True if the date is on T+1 or T+2.
+    """
+    from datetime import timedelta
+    d = as_of_date.date() if hasattr(as_of_date, 'date') else as_of_date
+    
+    try:
+        expiry = monthly_opex_expiry(d.year, d.month)
+        t1_monday = expiry + timedelta(days=3)
+        t2_tuesday = expiry + timedelta(days=4)
+        
+        return d == t1_monday or d == t2_tuesday
+    except ValueError:
+        return False
+
+# ============================================================================
 # SECTOR RELATIVE STRENGTH
 # ============================================================================
 
