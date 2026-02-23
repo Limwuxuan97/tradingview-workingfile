@@ -220,7 +220,7 @@ EP:  1,440 trades, 51% WR, Avg R=1.42, PnL=$3,457K
 
 ---
 
-## 5. GAP FROM BEST (46% vs 90% CAGR)
+## 5. GAP FROM BEST (58.9% vs 90% CAGR)
 
 The remaining gap from the peak ~90% CAGR is likely due to:
 1. **Expanded universe** (89 tickers vs ~70): More mediocre signals dilute quality
@@ -229,8 +229,8 @@ The remaining gap from the peak ~90% CAGR is likely due to:
 4. **Possible overfitting in original peak**: The 90% may have been a fortunate combination
 
 ### Potential Further Optimizations:
-- Reduce universe to highest-quality 60-70 tickers
-- Fine-tune scanner thresholds (HTF prior run %, EP gap %)
+- Run full universe backtest (`--universe full`, 3000+ tickers) — find more setups in mid/small caps
+- Fine-tune macro engine weights and sizing range (currently gentle +-15%)
 - Optimize partial profit targets (test 1.5R/3R instead of 2R/5R)
 - Investigate why BREAKOUT scanner produces 0 trades (currently all HTF/EP)
 - Test 10 SMA trail instead of 20 SMA for faster profit locking
@@ -269,23 +269,32 @@ User reported that UNH trade from $283 to $481 had a trailing stop issue in a pr
 
 ---
 
-## 8. MACRO OVERLAY ARCHITECTURE (for future reference)
+## 8. MACRO OVERLAY ARCHITECTURE
 
-The system supports these macro overlays, but they are currently **DISABLED** in the scanner to maintain performance:
+### ACTIVE overlays (all affect SIZING, not signal filtering):
+- **Kitchin 41-month cycle**: Position sizing multiplier (0.4-2.5x by phase)
+- **China Kitchin 37-month cycle**: For China ADRs, sizing only
+- **Market regime filter**: Dynamic position limits (SPY > 50SMA, 10EMA > 20EMA)
+- **Macro engine** (NEW): Forward-looking regime detection via 5 signals -> 0.85-1.15x sizing
+  - Yield curve slope (^TNX - ^IRX): 30% weight
+  - Rate direction (^IRX trend): 25% weight
+  - Copper/Gold ratio (HG=F / GC=F): 20% weight
+  - Dollar regime (DXY): 15% weight
+  - VIX regime: 10% weight
+- **China rotation signal** (NEW): Kitchin US/China divergence -> 0.8-1.2x for China ADRs
+- **Earnings catalyst bonus** (NEW): +15 EP score for strong earnings (>60 catalyst score), +8 for decent (>40)
+- **Drawdown sizing mult**: Only at catastrophic 60%+ DD
 
-- **Kitchin 41-month cycle**: ACTIVE (position sizing only, via `get_cycle_sizing_multiplier`)
-- **China Kitchin 37-month cycle**: ACTIVE (for China ADRs, sizing only)
-- **Market regime filter**: ACTIVE (SPY > 50SMA, 10EMA > 20EMA)
-- **Sector RS scoring**: EXISTS in code but DISABLED in scanner
-- **Newton sector rotation**: EXISTS in code but DISABLED in scanner
-- **Composite tech score**: EXISTS in code but DISABLED in scanner
-- **CME T+35 adjustment**: EXISTS in code but DISABLED in scanner
+### DISABLED overlays (exist in code but turned off in scanner):
+- **Sector RS scoring**: DISABLED in scanner
+- **Newton sector rotation**: DISABLED in scanner
+- **Composite tech score**: DISABLED in scanner
+- **CME T+35 adjustment**: DISABLED in scanner
 - **RSI overbought guard**: REMOVED from scanner
-- **Drawdown sizing mult**: ACTIVE but only at catastrophic 60%+ DD
 
-If re-enabling macro overlays, follow the **LIGHT TOUCH** principle:
-- Never more than +/-3% on any single overlay
-- Never stack more than 2 overlays on a signal
+### LIGHT TOUCH principle for macro:
+- Macro engine capped at +-15% (never crush positions)
+- Earnings bonus is ADDITIVE only, never penalizes
 - Test each overlay independently before combining
 - Always A/B test against the pure-technical baseline
 
@@ -329,3 +338,32 @@ If re-enabling macro overlays, follow the **LIGHT TOUCH** principle:
 - Added China Kitchin cycle pre-computation
 - Added sector ETF data loading and sector_strength per scan
 - Dynamic position reduction in bear markets (close weakest positions)
+- Added macro engine integration: fetch macro data at start, daily macro_sizing_multiplier
+- Added earnings engine integration: pre-fetch earnings, pass to scanner
+- Added China rotation multiplier for China ADR sizing
+- Added daily pre-filter for large universes (>200 tickers)
+
+### macro_engine.py (NEW)
+- 8 Yahoo Finance macro tickers for forward-looking regime detection
+- 5 signal functions (yield curve, rate direction, Cu/Au, dollar, VIX)
+- Composite score (-1.0 to +1.0) -> sizing multiplier (0.85-1.15x)
+- Kitchin cycle forecast with US/China divergence
+- China rotation signal for ADR allocation
+
+### earnings_engine.py (NEW)
+- Earnings data fetch from yfinance with 7-day disk caching
+- Earnings Catalyst Score (0-100)
+- Near-earnings detection for EP catalyst confirmation
+
+### universe_builder.py (NEW)
+- NASDAQ screener API discovery (7041 tickers)
+- Pre-filter by market cap, volume, price (to 3000)
+- Daily vectorized scan pre-filter (above 200 SMA, ADR > 2%)
+
+### data_provider.py
+- Batched downloading (100 tickers/batch, 2s delay)
+- Retry logic with exponential backoff (3 retries)
+
+### config.py
+- Added UniverseConfig dataclass
+- Added MacroEngineConfig dataclass
