@@ -30,14 +30,14 @@ MIN_POSITIONS = 5
 
 # Risk per trade: Qullamaggie risks ~1% on the STOP, but sizes 10-20% of account
 # The difference is tight stops (2-5% from entry). So risk_pct * leverage = big position.
-MAX_RISK_PER_TRADE_PCT = 0.03      # 3% of account risk per trade
+MAX_RISK_PER_TRADE_PCT = 0.01      # 1% of account risk per trade (strict Qullamaggie rule)
 MAX_TOTAL_RISK_PCT = 0.30          # 30% total open risk
 COMMISSION_PCT = 0.001             # 0.1% per side
 SLIPPAGE_PCT = 0.001               # 0.1% slippage estimate
 
 # Position as % of equity (Qullamaggie: 10-20% per position)
 MAX_POSITION_PCT_OF_EQUITY = 0.20  # Max 20% of equity in single position
-TARGET_POSITION_PCT = 0.12         # Target ~12% per position
+TARGET_POSITION_PCT = 0.15         # Target ~15% per position
 
 # ============================================================================
 # KITCHIN 41-MONTH CYCLE
@@ -162,7 +162,7 @@ class QullamaggieConfig:
     orb_minutes: int = 30              # Opening range breakout window
 
     # --- Risk Management (Qullamaggie-style aggressive) ---
-    risk_per_trade_pct: float = 0.03   # 3% of account risk per trade
+    risk_per_trade_pct: float = 0.01   # 1% of account risk per trade
     stop_method: str = "base_low"      # "base_low" or "breakout_day_low"
     max_stop_adr_multiple: float = 2.5 # Stop distance <= 2.5x ADR (slightly more room)
     # Qullamaggie: Trim 1/3 to 1/2 after 3-5 day burst, trail rest on 10/20 SMA

@@ -1,0 +1,32 @@
+[
+  {
+    "date": "2024-12-31",
+    "eps_actual": null,
+    "eps_estimate": null,
+    "revenue_actual": 187792000000.0
+  },
+  {
+    "date": "2025-03-31",
+    "eps_actual": 1.59,
+    "eps_estimate": 1.358,
+    "revenue_actual": 155667000000.0
+  },
+  {
+    "date": "2025-06-30",
+    "eps_actual": 1.68,
+    "eps_estimate": 1.33192,
+    "revenue_actual": 167702000000.0
+  },
+  {
+    "date": "2025-09-30",
+    "eps_actual": 1.95,
+    "eps_estimate": 1.55757,
+    "revenue_actual": 180169000000.0
+  },
+  {
+    "date": "2025-12-31",
+    "eps_actual": 1.95,
+    "eps_estimate": 1.95962,
+    "revenue_actual": 213386000000.0
+  }
+]

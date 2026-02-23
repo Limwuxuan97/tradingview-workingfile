@@ -378,8 +378,10 @@ class PositionManager:
             # trades that pull back to 0.5R then run to 5-10R (common pattern).
             # The 20 SMA trail after day 10 provides gradual protection instead.
 
-            # === FIRST PARTIAL: 1/3 at 2R ===
-            if not pos.partial_1_sold and pos.r_multiple >= QMAG.first_target_r_multiple:
+            # === FIRST PARTIAL: 1/3 at 2R or after 3-5 day burst ===
+            # Time-based burst: if held 3 to 5 days and in good profit (> 1.5R), take partial
+            burst_condition = (3 <= pos.days_held <= 5) and (pos.r_multiple >= 1.5)
+            if not pos.partial_1_sold and (pos.r_multiple >= QMAG.first_target_r_multiple or burst_condition):
                 sell_shares = max(1, int(pos.initial_shares * QMAG.initial_sell_pct))
                 if sell_shares > 0 and sell_shares < pos.shares:
                     fill_price = current_close * (1 - SLIPPAGE_PCT)

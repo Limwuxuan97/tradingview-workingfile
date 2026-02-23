@@ -99,7 +99,7 @@ def scan_htf(df: pd.DataFrame, ticker: str, spy_close: pd.Series,
         run_high = window["high"].max()
         run_pct = (run_high - run_low) / run_low * 100.0 if run_low > 0 else 0
 
-        if run_pct < 15.0 or run_pct > 200.0:  # Wider range: 15-200%
+        if run_pct < QMAG.htf_prior_run_pct or run_pct > 200.0:  # Strict 30%+ prior run
             continue
             
         # Check consolidation quality
@@ -108,7 +108,7 @@ def scan_htf(df: pd.DataFrame, ticker: str, spy_close: pd.Series,
         consol_low = consol_window["low"].min()
         retracement = (consol_high - consol_low) / consol_high * 100.0 if consol_high > 0 else 100
         
-        if retracement > QMAG.htf_max_retracement_pct * 1.2:  # Allow 20% more room
+        if retracement > QMAG.htf_max_retracement_pct:  # Strict max retracement (25%)
             continue
             
         # Score this combination
@@ -125,10 +125,12 @@ def scan_htf(df: pd.DataFrame, ticker: str, spy_close: pd.Series,
     # 6. VCP: ATR contraction
     _vcp = vcp_score(df).iloc[row_idx]
     # VCP and volume are scored, not gated hard
-    vol_dry = volume_dry_up(vol, 20, 0.85).iloc[row_idx]  # Relaxed threshold
+    vol_dry = volume_dry_up(vol, 20, QMAG.htf_volume_dry_ratio).iloc[row_idx]  # Strict threshold
 
     # 8. MA alignment
     aligned = ma_alignment(df, QMAG.trend_mas).iloc[row_idx]
+    if not aligned:
+        return None
 
     # 9. RS vs SPY
     if len(spy_close) > 63 and len(close) > 63:
@@ -202,12 +204,12 @@ def scan_ep(df: pd.DataFrame, ticker: str, spy_close: pd.Series,
     # 1. Gap detection
     current_open = df["open"].iloc[row_idx]
     _gap = (current_open - prev_close) / prev_close * 100.0 if prev_close > 0 else 0
-    if abs(_gap) < 5.0:  # Relaxed from 10% to 5% gap to catch more EPs
+    if abs(_gap) < QMAG.ep_min_gap_pct:  # Strict 10% gap requirement
         return None
 
     # 2. Relative volume
     _rvol = relative_volume(vol, 50).iloc[row_idx]
-    if pd.isna(_rvol) or _rvol < 1.5:  # Relaxed from 2.0 to 1.5
+    if pd.isna(_rvol) or _rvol < QMAG.ep_min_rvol:  # Strict 2x relative volume requirement
         return None
 
     # 3. Average volume
