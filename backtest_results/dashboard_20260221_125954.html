@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algo Trading System — Performance Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-muted: #8b949e;
+            --green: #3fb950;
+            --red: #f85149;
+            --blue: #58a6ff;
+            --purple: #bc8cff;
+            --yellow: #d29922;
+            --orange: #db6d28;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1e2e, #0d1117);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .header h1 {
+            font-size: 28px;
+            background: linear-gradient(90deg, var(--blue), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .subtitle { color: var(--text-muted); margin-top: 5px; }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .kpi-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            text-align: center;
+        }
+        .kpi-card .label { color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .kpi-card .value { font-size: 28px; font-weight: 700; margin-top: 5px; }
+        .kpi-card .value.positive { color: var(--green); }
+        .kpi-card .value.negative { color: var(--red); }
+        .kpi-card .value.neutral { color: var(--blue); }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .chart-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .chart-card.full { grid-column: 1 / -1; }
+        .chart-card h3 { color: var(--blue); margin-bottom: 15px; font-size: 16px; }
+        .chart-container { position: relative; height: 300px; }
+        .chart-container.tall { height: 400px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 11px; }
+        td { color: var(--text); }
+        th:first-child, td:first-child { text-align: left; }
+        .positive { color: var(--green); }
+        .negative { color: var(--red); }
+        .cycle-bar {
+            display: inline-block;
+            height: 20px;
+            border-radius: 3px;
+            margin: 2px 1px;
+        }
+        .monthly-grid {
+            display: grid;
+            grid-template-columns: auto repeat(12, 1fr) auto;
+            gap: 2px;
+            font-size: 11px;
+        }
+        .monthly-cell {
+            padding: 6px 4px;
+            text-align: center;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        .monthly-header { color: var(--text-muted); font-weight: 600; }
+        @media (max-width: 900px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Unified Trading System — Performance Report</h1>
+        <div class="subtitle">Qullamaggie Momentum + Kitchin Cycle Overlay | 2014-01-02 to 2026-02-19</div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="label">Total Return</div>
+            <div class="value positive">+62249.5%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label">CAGR</div>
+            <div class="value positive">+70.0%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label">Max Drawdown</div>
+            <div class="value negative">-54.0%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label">Sharpe Ratio</div>
+            <div class="value positive">1.271</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label">Sortino Ratio</div>
+            <div class="value positive">1.907</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label">Profit Factor</div>
+            <div class="value positive">1.499</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label">Win Rate</div>
+            <div class="value neutral">50.6%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label">Total Trades</div>
+            <div class="value neutral">2312</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label">Alpha vs SPY</div>
+            <div class="value positive">+61890.0%</div>
+        </div>
+        <div class="kpi-card">
+            <div class="label">Final Equity</div>
+            <div class="value positive">$4,987,957</div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-grid">
+        <!-- Equity Curve -->
+        <div class="chart-card full">
+            <h3>Equity Curve vs SPY Benchmark</h3>
+            <div class="chart-container tall">
+                <canvas id="equityChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Drawdown -->
+        <div class="chart-card full">
+            <h3>Drawdown</h3>
+            <div class="chart-container">
+                <canvas id="drawdownChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Setup Distribution -->
+        <div class="chart-card">
+            <h3>Trades by Setup Type</h3>
+            <div class="chart-container">
+                <canvas id="setupPie"></canvas>
+            </div>
+        </div>
+
+        <!-- Win Rate by Setup -->
+        <div class="chart-card">
+            <h3>Win Rate & Avg R by Setup</h3>
+            <div class="chart-container">
+                <canvas id="setupBar"></canvas>
+            </div>
+        </div>
+
+        <!-- R-Multiple Distribution -->
+        <div class="chart-card">
+            <h3>R-Multiple Distribution</h3>
+            <div class="chart-container">
+                <canvas id="rDistChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Cycle Phase Performance -->
+        <div class="chart-card">
+            <h3>Kitchin Cycle Phase Distribution</h3>
+            <div class="chart-container">
+                <canvas id="cycleChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Monthly Returns Heatmap -->
+        <div class="chart-card full">
+            <h3>Monthly Returns Heatmap (%)</h3>
+            <div id="monthlyHeatmap" class="monthly-grid">
+                <div class="monthly-cell monthly-header">Year</div><div class="monthly-cell monthly-header">Jan</div><div class="monthly-cell monthly-header">Feb</div><div class="monthly-cell monthly-header">Mar</div><div class="monthly-cell monthly-header">Apr</div><div class="monthly-cell monthly-header">May</div><div class="monthly-cell monthly-header">Jun</div><div class="monthly-cell monthly-header">Jul</div><div class="monthly-cell monthly-header">Aug</div><div class="monthly-cell monthly-header">Sep</div><div class="monthly-cell monthly-header">Oct</div><div class="monthly-cell monthly-header">Nov</div><div class="monthly-cell monthly-header">Dec</div><div class="monthly-cell monthly-header">Total</div><div class="monthly-cell monthly-header">2014</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">+0.0</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">+0.0</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">+0.0</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">+0.0</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">+0.0</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">+0.0</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">+0.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+4.2</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-6.3</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-7.5</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+9.5</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-7.2</div><div class="monthly-cell" style="color:var(--red);font-weight:700">-7.3</div><div class="monthly-cell monthly-header">2015</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-6.2</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+8.4</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-6.8</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.15)">+0.5</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+5.5</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.35)">-4.3</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-13.3</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+2.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+49.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+32.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.2</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-20.2</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+59.3</div><div class="monthly-cell monthly-header">2016</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+12.4</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+6.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+8.3</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+6.6</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.0</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-7.2</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+22.6</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+16.1</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+2.4</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-7.6</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+30.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+5.5</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+105.8</div><div class="monthly-cell monthly-header">2017</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+9.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+2.6</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.35)">-2.8</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.35)">-2.5</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+9.6</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-21.8</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+11.5</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+5.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+8.8</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+4.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+8.2</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+43.9</div><div class="monthly-cell monthly-header">2018</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.6</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-11.0</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">-1.1</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+2.8</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+4.1</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-8.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.15)">+1.1</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+18.4</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.8</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-11.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+5.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.0</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+30.3</div><div class="monthly-cell monthly-header">2019</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+14.2</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+5.4</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+8.5</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+9.7</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-21.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.9</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">-1.8</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.35)">-4.4</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-12.8</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+12.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+8.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+31.0</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+60.4</div><div class="monthly-cell monthly-header">2020</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+13.6</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-13.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+68.8</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+41.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+32.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+32.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+17.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+18.7</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-26.8</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">-1.5</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+11.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.15)">+1.4</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+195.8</div><div class="monthly-cell monthly-header">2021</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+22.7</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-7.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.3</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.15)">+0.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+13.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+23.2</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+12.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+13.9</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.35)">-2.4</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.5</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.35)">-2.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+5.9</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+100.8</div><div class="monthly-cell monthly-header">2022</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-12.6</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">-1.6</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+6.7</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-18.2</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+4.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+44.4</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+4.6</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.35)">-3.3</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-23.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.15)">+1.3</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+13.4</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-12.0</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+4.6</div><div class="monthly-cell monthly-header">2023</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+3.9</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.35)">-3.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.4</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-21.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+19.1</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+19.5</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-24.7</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-10.1</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-9.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+36.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+12.0</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+42.0</div><div class="monthly-cell monthly-header">2024</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+53.2</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+45.6</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-9.4</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-6.6</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+8.7</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+7.9</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-17.1</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.15)">+1.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+32.4</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-10.5</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+16.3</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-12.1</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+109.4</div><div class="monthly-cell monthly-header">2025</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+8.7</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.35)">-3.0</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.15)">+0.4</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">-0.2</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+24.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+10.2</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.15)">-0.2</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.35)">+3.2</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+21.1</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+6.5</div><div class="monthly-cell" style="background:rgba(248, 81, 73, 0.6)">-22.9</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+6.8</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+55.5</div><div class="monthly-cell monthly-header">2026</div><div class="monthly-cell" style="background:rgba(63, 185, 80, 0.6)">+13.4</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="opacity:0.3">—</div><div class="monthly-cell" style="color:var(--green);font-weight:700">+13.4</div>
+            </div>
+        </div>
+
+        <!-- Top Trades Table -->
+        <div class="chart-card">
+            <h3>Top 10 Winners</h3>
+            <table>
+                <tr><th>Ticker</th><th>Setup</th><th>Entry</th><th>PnL</th><th>R</th><th>Days</th></tr>
+                <tr><td>MU</td><td>EP</td><td>2025-12-18</td><td class="positive">$717,689</td><td>26.9</td><td>63</td></tr><tr><td>CRM</td><td>EP</td><td>2024-05-30</td><td class="positive">$632,493</td><td>7.2</td><td>5</td></tr><tr><td>SMCI</td><td>HTF</td><td>2024-01-05</td><td class="positive">$608,986</td><td>35.3</td><td>73</td></tr><tr><td>AMAT</td><td>EP</td><td>2025-11-14</td><td class="positive">$445,223</td><td>5.8</td><td>97</td></tr><tr><td>AMAT</td><td>EP</td><td>2025-11-14</td><td class="positive">$387,186</td><td>5.2</td><td>91</td></tr><tr><td>COIN</td><td>EP</td><td>2022-06-13</td><td class="positive">$252,539</td><td>5.5</td><td>11</td></tr><tr><td>JD</td><td>HTF</td><td>2024-09-11</td><td class="positive">$226,674</td><td>10.4</td><td>36</td></tr><tr><td>DDOG</td><td>EP</td><td>2024-05-07</td><td class="positive">$216,823</td><td>2.9</td><td>10</td></tr><tr><td>UNH</td><td>EP</td><td>2025-05-15</td><td class="positive">$214,579</td><td>5.9</td><td>13</td></tr><tr><td>PANW</td><td>EP</td><td>2024-02-21</td><td class="positive">$205,221</td><td>12.3</td><td>5</td></tr>
+            </table>
+        </div>
+
+        <!-- Top Losers -->
+        <div class="chart-card">
+            <h3>Top 10 Losers</h3>
+            <table>
+                <tr><th>Ticker</th><th>Setup</th><th>Entry</th><th>PnL</th><th>R</th><th>Days</th></tr>
+                <tr><td>XPEV</td><td>EP</td><td>2025-11-10</td><td class="negative">$-277,582</td><td>-1.0</td><td>7</td></tr><tr><td>NET</td><td>EP</td><td>2025-11-18</td><td class="negative">$-234,458</td><td>-1.0</td><td>3</td></tr><tr><td>SE</td><td>HTF</td><td>2024-06-21</td><td class="negative">$-174,095</td><td>-1.0</td><td>4</td></tr><tr><td>ISRG</td><td>EP</td><td>2024-07-19</td><td class="negative">$-149,742</td><td>-1.0</td><td>7</td></tr><tr><td>COIN</td><td>HTF</td><td>2024-04-11</td><td class="negative">$-147,287</td><td>-1.0</td><td>4</td></tr><tr><td>SE</td><td>EP</td><td>2024-06-25</td><td class="negative">$-144,644</td><td>-1.0</td><td>3</td></tr><tr><td>MU</td><td>HTF</td><td>2024-07-10</td><td class="negative">$-144,607</td><td>-1.0</td><td>7</td></tr><tr><td>KLAC</td><td>HTF</td><td>2025-12-11</td><td class="negative">$-138,983</td><td>-1.0</td><td>6</td></tr><tr><td>LLY</td><td>HTF</td><td>2025-11-21</td><td class="negative">$-130,930</td><td>-0.6</td><td>13</td></tr><tr><td>NET</td><td>HTF</td><td>2024-03-07</td><td class="negative">$-130,478</td><td>-1.0</td><td>7</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        Chart.defaults.color = '#c9d1d9';
+        Chart.defaults.borderColor = '#30363d';
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+
+        // === EQUITY CURVE ===
+        const eqLabels = ["2014-01-02 00:00:00", "2014-01-09 00:00:00", "2014-01-16 00:00:00", "2014-01-24 00:00:00", "2014-01-31 00:00:00", "2014-02-07 00:00:00", "2014-02-14 00:00:00", "2014-02-24 00:00:00", "2014-03-03 00:00:00", "2014-03-10 00:00:00", "2014-03-17 00:00:00", "2014-03-24 00:00:00", "2014-03-31 00:00:00", "2014-04-07 00:00:00", "2014-04-14 00:00:00", "2014-04-22 00:00:00", "2014-04-29 00:00:00", "2014-05-06 00:00:00", "2014-05-13 00:00:00", "2014-05-20 00:00:00", "2014-05-28 00:00:00", "2014-06-04 00:00:00", "2014-06-11 00:00:00", "2014-06-18 00:00:00", "2014-06-25 00:00:00", "2014-07-02 00:00:00", "2014-07-10 00:00:00", "2014-07-17 00:00:00", "2014-07-24 00:00:00", "2014-07-31 00:00:00", "2014-08-07 00:00:00", "2014-08-14 00:00:00", "2014-08-21 00:00:00", "2014-08-28 00:00:00", "2014-09-05 00:00:00", "2014-09-12 00:00:00", "2014-09-19 00:00:00", "2014-09-26 00:00:00", "2014-10-03 00:00:00", "2014-10-10 00:00:00", "2014-10-17 00:00:00", "2014-10-24 00:00:00", "2014-10-31 00:00:00", "2014-11-07 00:00:00", "2014-11-14 00:00:00", "2014-11-21 00:00:00", "2014-12-01 00:00:00", "2014-12-08 00:00:00", "2014-12-15 00:00:00", "2014-12-22 00:00:00", "2014-12-30 00:00:00", "2015-01-07 00:00:00", "2015-01-14 00:00:00", "2015-01-22 00:00:00", "2015-01-29 00:00:00", "2015-02-05 00:00:00", "2015-02-12 00:00:00", "2015-02-20 00:00:00", "2015-02-27 00:00:00", "2015-03-06 00:00:00", "2015-03-13 00:00:00", "2015-03-20 00:00:00", "2015-03-27 00:00:00", "2015-04-06 00:00:00", "2015-04-13 00:00:00", "2015-04-20 00:00:00", "2015-04-27 00:00:00", "2015-05-04 00:00:00", "2015-05-11 00:00:00", "2015-05-18 00:00:00", "2015-05-26 00:00:00", "2015-06-02 00:00:00", "2015-06-09 00:00:00", "2015-06-16 00:00:00", "2015-06-23 00:00:00", "2015-06-30 00:00:00", "2015-07-08 00:00:00", "2015-07-15 00:00:00", "2015-07-22 00:00:00", "2015-07-29 00:00:00", "2015-08-05 00:00:00", "2015-08-12 00:00:00", "2015-08-19 00:00:00", "2015-08-26 00:00:00", "2015-09-02 00:00:00", "2015-09-10 00:00:00", "2015-09-17 00:00:00", "2015-09-24 00:00:00", "2015-10-01 00:00:00", "2015-10-08 00:00:00", "2015-10-15 00:00:00", "2015-10-22 00:00:00", "2015-10-29 00:00:00", "2015-11-05 00:00:00", "2015-11-12 00:00:00", "2015-11-19 00:00:00", "2015-11-27 00:00:00", "2015-12-04 00:00:00", "2015-12-11 00:00:00", "2015-12-18 00:00:00", "2015-12-28 00:00:00", "2016-01-05 00:00:00", "2016-01-12 00:00:00", "2016-01-20 00:00:00", "2016-01-27 00:00:00", "2016-02-03 00:00:00", "2016-02-10 00:00:00", "2016-02-18 00:00:00", "2016-02-25 00:00:00", "2016-03-03 00:00:00", "2016-03-10 00:00:00", "2016-03-17 00:00:00", "2016-03-24 00:00:00", "2016-04-01 00:00:00", "2016-04-08 00:00:00", "2016-04-15 00:00:00", "2016-04-22 00:00:00", "2016-04-29 00:00:00", "2016-05-06 00:00:00", "2016-05-13 00:00:00", "2016-05-20 00:00:00", "2016-05-27 00:00:00", "2016-06-06 00:00:00", "2016-06-13 00:00:00", "2016-06-20 00:00:00", "2016-06-27 00:00:00", "2016-07-05 00:00:00", "2016-07-12 00:00:00", "2016-07-19 00:00:00", "2016-07-26 00:00:00", "2016-08-02 00:00:00", "2016-08-09 00:00:00", "2016-08-16 00:00:00", "2016-08-23 00:00:00", "2016-08-30 00:00:00", "2016-09-07 00:00:00", "2016-09-14 00:00:00", "2016-09-21 00:00:00", "2016-09-28 00:00:00", "2016-10-05 00:00:00", "2016-10-12 00:00:00", "2016-10-19 00:00:00", "2016-10-26 00:00:00", "2016-11-02 00:00:00", "2016-11-09 00:00:00", "2016-11-16 00:00:00", "2016-11-23 00:00:00", "2016-12-01 00:00:00", "2016-12-08 00:00:00", "2016-12-15 00:00:00", "2016-12-22 00:00:00", "2016-12-30 00:00:00", "2017-01-09 00:00:00", "2017-01-17 00:00:00", "2017-01-24 00:00:00", "2017-01-31 00:00:00", "2017-02-07 00:00:00", "2017-02-14 00:00:00", "2017-02-22 00:00:00", "2017-03-01 00:00:00", "2017-03-08 00:00:00", "2017-03-15 00:00:00", "2017-03-22 00:00:00", "2017-03-29 00:00:00", "2017-04-05 00:00:00", "2017-04-12 00:00:00", "2017-04-20 00:00:00", "2017-04-27 00:00:00", "2017-05-04 00:00:00", "2017-05-11 00:00:00", "2017-05-18 00:00:00", "2017-05-25 00:00:00", "2017-06-02 00:00:00", "2017-06-09 00:00:00", "2017-06-16 00:00:00", "2017-06-23 00:00:00", "2017-06-30 00:00:00", "2017-07-10 00:00:00", "2017-07-17 00:00:00", "2017-07-24 00:00:00", "2017-07-31 00:00:00", "2017-08-07 00:00:00", "2017-08-14 00:00:00", "2017-08-21 00:00:00", "2017-08-28 00:00:00", "2017-09-05 00:00:00", "2017-09-12 00:00:00", "2017-09-19 00:00:00", "2017-09-26 00:00:00", "2017-10-03 00:00:00", "2017-10-10 00:00:00", "2017-10-17 00:00:00", "2017-10-24 00:00:00", "2017-10-31 00:00:00", "2017-11-07 00:00:00", "2017-11-14 00:00:00", "2017-11-21 00:00:00", "2017-11-29 00:00:00", "2017-12-06 00:00:00", "2017-12-13 00:00:00", "2017-12-20 00:00:00", "2017-12-28 00:00:00", "2018-01-05 00:00:00", "2018-01-12 00:00:00", "2018-01-22 00:00:00", "2018-01-29 00:00:00", "2018-02-05 00:00:00", "2018-02-12 00:00:00", "2018-02-20 00:00:00", "2018-02-27 00:00:00", "2018-03-06 00:00:00", "2018-03-13 00:00:00", "2018-03-20 00:00:00", "2018-03-27 00:00:00", "2018-04-04 00:00:00", "2018-04-11 00:00:00", "2018-04-18 00:00:00", "2018-04-25 00:00:00", "2018-05-02 00:00:00", "2018-05-09 00:00:00", "2018-05-16 00:00:00", "2018-05-23 00:00:00", "2018-05-31 00:00:00", "2018-06-07 00:00:00", "2018-06-14 00:00:00", "2018-06-21 00:00:00", "2018-06-28 00:00:00", "2018-07-06 00:00:00", "2018-07-13 00:00:00", "2018-07-20 00:00:00", "2018-07-27 00:00:00", "2018-08-03 00:00:00", "2018-08-10 00:00:00", "2018-08-17 00:00:00", "2018-08-24 00:00:00", "2018-08-31 00:00:00", "2018-09-10 00:00:00", "2018-09-17 00:00:00", "2018-09-24 00:00:00", "2018-10-01 00:00:00", "2018-10-08 00:00:00", "2018-10-15 00:00:00", "2018-10-22 00:00:00", "2018-10-29 00:00:00", "2018-11-05 00:00:00", "2018-11-12 00:00:00", "2018-11-19 00:00:00", "2018-11-27 00:00:00", "2018-12-04 00:00:00", "2018-12-12 00:00:00", "2018-12-19 00:00:00", "2018-12-27 00:00:00", "2019-01-04 00:00:00", "2019-01-11 00:00:00", "2019-01-18 00:00:00", "2019-01-28 00:00:00", "2019-02-04 00:00:00", "2019-02-11 00:00:00", "2019-02-19 00:00:00", "2019-02-26 00:00:00", "2019-03-05 00:00:00", "2019-03-12 00:00:00", "2019-03-19 00:00:00", "2019-03-26 00:00:00", "2019-04-02 00:00:00", "2019-04-09 00:00:00", "2019-04-16 00:00:00", "2019-04-24 00:00:00", "2019-05-01 00:00:00", "2019-05-08 00:00:00", "2019-05-15 00:00:00", "2019-05-22 00:00:00", "2019-05-30 00:00:00", "2019-06-06 00:00:00", "2019-06-13 00:00:00", "2019-06-20 00:00:00", "2019-06-27 00:00:00", "2019-07-05 00:00:00", "2019-07-12 00:00:00", "2019-07-19 00:00:00", "2019-07-26 00:00:00", "2019-08-02 00:00:00", "2019-08-09 00:00:00", "2019-08-16 00:00:00", "2019-08-23 00:00:00", "2019-08-30 00:00:00", "2019-09-09 00:00:00", "2019-09-16 00:00:00", "2019-09-23 00:00:00", "2019-09-30 00:00:00", "2019-10-07 00:00:00", "2019-10-14 00:00:00", "2019-10-21 00:00:00", "2019-10-28 00:00:00", "2019-11-04 00:00:00", "2019-11-11 00:00:00", "2019-11-18 00:00:00", "2019-11-25 00:00:00", "2019-12-03 00:00:00", "2019-12-10 00:00:00", "2019-12-17 00:00:00", "2019-12-24 00:00:00", "2020-01-02 00:00:00", "2020-01-09 00:00:00", "2020-01-16 00:00:00", "2020-01-24 00:00:00", "2020-01-31 00:00:00", "2020-02-07 00:00:00", "2020-02-14 00:00:00", "2020-02-24 00:00:00", "2020-03-02 00:00:00", "2020-03-09 00:00:00", "2020-03-16 00:00:00", "2020-03-23 00:00:00", "2020-03-30 00:00:00", "2020-04-06 00:00:00", "2020-04-14 00:00:00", "2020-04-21 00:00:00", "2020-04-28 00:00:00", "2020-05-05 00:00:00", "2020-05-12 00:00:00", "2020-05-19 00:00:00", "2020-05-27 00:00:00", "2020-06-03 00:00:00", "2020-06-10 00:00:00", "2020-06-17 00:00:00", "2020-06-24 00:00:00", "2020-07-01 00:00:00", "2020-07-09 00:00:00", "2020-07-16 00:00:00", "2020-07-23 00:00:00", "2020-07-30 00:00:00", "2020-08-06 00:00:00", "2020-08-13 00:00:00", "2020-08-20 00:00:00", "2020-08-27 00:00:00", "2020-09-03 00:00:00", "2020-09-11 00:00:00", "2020-09-18 00:00:00", "2020-09-25 00:00:00", "2020-10-02 00:00:00", "2020-10-09 00:00:00", "2020-10-16 00:00:00", "2020-10-23 00:00:00", "2020-10-30 00:00:00", "2020-11-06 00:00:00", "2020-11-13 00:00:00", "2020-11-20 00:00:00", "2020-11-30 00:00:00", "2020-12-07 00:00:00", "2020-12-14 00:00:00", "2020-12-21 00:00:00", "2020-12-29 00:00:00", "2021-01-06 00:00:00", "2021-01-13 00:00:00", "2021-01-21 00:00:00", "2021-01-28 00:00:00", "2021-02-04 00:00:00", "2021-02-11 00:00:00", "2021-02-19 00:00:00", "2021-02-26 00:00:00", "2021-03-05 00:00:00", "2021-03-12 00:00:00", "2021-03-19 00:00:00", "2021-03-26 00:00:00", "2021-04-05 00:00:00", "2021-04-12 00:00:00", "2021-04-19 00:00:00", "2021-04-26 00:00:00", "2021-05-03 00:00:00", "2021-05-10 00:00:00", "2021-05-17 00:00:00", "2021-05-24 00:00:00", "2021-06-01 00:00:00", "2021-06-08 00:00:00", "2021-06-15 00:00:00", "2021-06-22 00:00:00", "2021-06-29 00:00:00", "2021-07-07 00:00:00", "2021-07-14 00:00:00", "2021-07-21 00:00:00", "2021-07-28 00:00:00", "2021-08-04 00:00:00", "2021-08-11 00:00:00", "2021-08-18 00:00:00", "2021-08-25 00:00:00", "2021-09-01 00:00:00", "2021-09-09 00:00:00", "2021-09-16 00:00:00", "2021-09-23 00:00:00", "2021-09-30 00:00:00", "2021-10-07 00:00:00", "2021-10-14 00:00:00", "2021-10-21 00:00:00", "2021-10-28 00:00:00", "2021-11-04 00:00:00", "2021-11-11 00:00:00", "2021-11-18 00:00:00", "2021-11-26 00:00:00", "2021-12-03 00:00:00", "2021-12-10 00:00:00", "2021-12-17 00:00:00", "2021-12-27 00:00:00", "2022-01-03 00:00:00", "2022-01-10 00:00:00", "2022-01-18 00:00:00", "2022-01-25 00:00:00", "2022-02-01 00:00:00", "2022-02-08 00:00:00", "2022-02-15 00:00:00", "2022-02-23 00:00:00", "2022-03-02 00:00:00", "2022-03-09 00:00:00", "2022-03-16 00:00:00", "2022-03-23 00:00:00", "2022-03-30 00:00:00", "2022-04-06 00:00:00", "2022-04-13 00:00:00", "2022-04-21 00:00:00", "2022-04-28 00:00:00", "2022-05-05 00:00:00", "2022-05-12 00:00:00", "2022-05-19 00:00:00", "2022-05-26 00:00:00", "2022-06-03 00:00:00", "2022-06-10 00:00:00", "2022-06-17 00:00:00", "2022-06-27 00:00:00", "2022-07-05 00:00:00", "2022-07-12 00:00:00", "2022-07-19 00:00:00", "2022-07-26 00:00:00", "2022-08-02 00:00:00", "2022-08-09 00:00:00", "2022-08-16 00:00:00", "2022-08-23 00:00:00", "2022-08-30 00:00:00", "2022-09-07 00:00:00", "2022-09-14 00:00:00", "2022-09-21 00:00:00", "2022-09-28 00:00:00", "2022-10-05 00:00:00", "2022-10-12 00:00:00", "2022-10-19 00:00:00", "2022-10-26 00:00:00", "2022-11-02 00:00:00", "2022-11-09 00:00:00", "2022-11-16 00:00:00", "2022-11-23 00:00:00", "2022-12-01 00:00:00", "2022-12-08 00:00:00", "2022-12-15 00:00:00", "2022-12-22 00:00:00", "2022-12-30 00:00:00", "2023-01-09 00:00:00", "2023-01-17 00:00:00", "2023-01-24 00:00:00", "2023-01-31 00:00:00", "2023-02-07 00:00:00", "2023-02-14 00:00:00", "2023-02-22 00:00:00", "2023-03-01 00:00:00", "2023-03-08 00:00:00", "2023-03-15 00:00:00", "2023-03-22 00:00:00", "2023-03-29 00:00:00", "2023-04-05 00:00:00", "2023-04-13 00:00:00", "2023-04-20 00:00:00", "2023-04-27 00:00:00", "2023-05-04 00:00:00", "2023-05-11 00:00:00", "2023-05-18 00:00:00", "2023-05-25 00:00:00", "2023-06-02 00:00:00", "2023-06-09 00:00:00", "2023-06-16 00:00:00", "2023-06-26 00:00:00", "2023-07-03 00:00:00", "2023-07-11 00:00:00", "2023-07-18 00:00:00", "2023-07-25 00:00:00", "2023-08-01 00:00:00", "2023-08-08 00:00:00", "2023-08-15 00:00:00", "2023-08-22 00:00:00", "2023-08-29 00:00:00", "2023-09-06 00:00:00", "2023-09-13 00:00:00", "2023-09-20 00:00:00", "2023-09-27 00:00:00", "2023-10-04 00:00:00", "2023-10-11 00:00:00", "2023-10-18 00:00:00", "2023-10-25 00:00:00", "2023-11-01 00:00:00", "2023-11-08 00:00:00", "2023-11-15 00:00:00", "2023-11-22 00:00:00", "2023-11-30 00:00:00", "2023-12-07 00:00:00", "2023-12-14 00:00:00", "2023-12-21 00:00:00", "2023-12-29 00:00:00", "2024-01-08 00:00:00", "2024-01-16 00:00:00", "2024-01-23 00:00:00", "2024-01-30 00:00:00", "2024-02-06 00:00:00", "2024-02-13 00:00:00", "2024-02-21 00:00:00", "2024-02-28 00:00:00", "2024-03-06 00:00:00", "2024-03-13 00:00:00", "2024-03-20 00:00:00", "2024-03-27 00:00:00", "2024-04-04 00:00:00", "2024-04-11 00:00:00", "2024-04-18 00:00:00", "2024-04-25 00:00:00", "2024-05-02 00:00:00", "2024-05-09 00:00:00", "2024-05-16 00:00:00", "2024-05-23 00:00:00", "2024-05-31 00:00:00", "2024-06-07 00:00:00", "2024-06-14 00:00:00", "2024-06-24 00:00:00", "2024-07-01 00:00:00", "2024-07-09 00:00:00", "2024-07-16 00:00:00", "2024-07-23 00:00:00", "2024-07-30 00:00:00", "2024-08-06 00:00:00", "2024-08-13 00:00:00", "2024-08-20 00:00:00", "2024-08-27 00:00:00", "2024-09-04 00:00:00", "2024-09-11 00:00:00", "2024-09-18 00:00:00", "2024-09-25 00:00:00", "2024-10-02 00:00:00", "2024-10-09 00:00:00", "2024-10-16 00:00:00", "2024-10-23 00:00:00", "2024-10-30 00:00:00", "2024-11-06 00:00:00", "2024-11-13 00:00:00", "2024-11-20 00:00:00", "2024-11-27 00:00:00", "2024-12-05 00:00:00", "2024-12-12 00:00:00", "2024-12-19 00:00:00", "2024-12-27 00:00:00", "2025-01-06 00:00:00", "2025-01-14 00:00:00", "2025-01-22 00:00:00", "2025-01-29 00:00:00", "2025-02-05 00:00:00", "2025-02-12 00:00:00", "2025-02-20 00:00:00", "2025-02-27 00:00:00", "2025-03-06 00:00:00", "2025-03-13 00:00:00", "2025-03-20 00:00:00", "2025-03-27 00:00:00", "2025-04-03 00:00:00", "2025-04-10 00:00:00", "2025-04-17 00:00:00", "2025-04-25 00:00:00", "2025-05-02 00:00:00", "2025-05-09 00:00:00", "2025-05-16 00:00:00", "2025-05-23 00:00:00", "2025-06-02 00:00:00", "2025-06-09 00:00:00", "2025-06-16 00:00:00", "2025-06-24 00:00:00", "2025-07-01 00:00:00", "2025-07-09 00:00:00", "2025-07-16 00:00:00", "2025-07-23 00:00:00", "2025-07-30 00:00:00", "2025-08-06 00:00:00", "2025-08-13 00:00:00", "2025-08-20 00:00:00", "2025-08-27 00:00:00", "2025-09-04 00:00:00", "2025-09-11 00:00:00", "2025-09-18 00:00:00", "2025-09-25 00:00:00", "2025-10-02 00:00:00", "2025-10-09 00:00:00", "2025-10-16 00:00:00", "2025-10-23 00:00:00", "2025-10-30 00:00:00", "2025-11-06 00:00:00", "2025-11-13 00:00:00", "2025-11-20 00:00:00", "2025-11-28 00:00:00", "2025-12-05 00:00:00", "2025-12-12 00:00:00", "2025-12-19 00:00:00", "2025-12-29 00:00:00", "2026-01-06 00:00:00", "2026-01-13 00:00:00", "2026-01-21 00:00:00", "2026-01-28 00:00:00", "2026-02-04 00:00:00", "2026-02-11 00:00:00", "2026-02-19 00:00:00"];  // Sample every 5 days for performance
+        const eqValues = [8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 8000.0, 7911.119859136274, 8150.191405690839, 8407.630470841093, 8222.882231323882, 8105.538879748708, 8027.505188342458, 7557.417499969685, 7347.922183898478, 7347.922183898478, 7347.922183898478, 7231.3271685624095, 7371.406875643084, 7356.650695833514, 7770.8047663643265, 7915.179156012764, 7955.362870339177, 7545.253689724961, 7468.322999635811, 7418.0946843285965, 6997.314580993233, 6909.246726556249, 6967.738432622149, 6926.569794052544, 6903.48463398471, 7282.346045521225, 7516.3986935013845, 7384.505306725809, 7092.934973236687, 7058.8188655950735, 7129.014353917071, 6939.265743185317, 7059.127704177015, 7017.513422823679, 6864.947420638503, 6832.699528793152, 7055.948794779938, 6984.656551458065, 7178.325819282612, 7373.3371363115, 7346.779897271036, 7625.762865667347, 7791.944282930801, 7918.425249108401, 7067.119979455192, 6563.824024337411, 6418.250478858912, 6670.970283684459, 6155.566477961742, 6379.377179194747, 7185.668451919774, 7042.199757838736, 6475.258710623081, 6442.006059408482, 6791.964277786332, 7328.3986271810645, 7494.626680735111, 9433.374620098364, 10306.046801901291, 10659.541211738231, 11391.601435974208, 11942.284088875593, 12860.987209206207, 13221.026617647305, 12834.272843339739, 13384.662811652113, 13360.224470425337, 12518.904542873002, 12064.326711403746, 11888.790158035556, 11125.420874735237, 10511.735284110122, 9986.104476125065, 11139.791079696612, 11677.029504462193, 10726.20449866209, 11588.62855227789, 11878.732428096428, 13213.085202518672, 12466.433752330955, 12911.643014216166, 12799.576521311123, 14237.12091421014, 13759.074176577515, 15074.046132823652, 15582.415372645211, 14638.490923306463, 14925.00515781323, 15718.651827980288, 15839.402730856986, 16621.575457603096, 16570.961383153946, 16208.613391248746, 16158.555480949482, 14328.514969448004, 15107.884353191994, 17089.929422469202, 17925.7082674309, 19974.431266487736, 18113.56288556379, 19732.585264279543, 20115.014809904078, 22240.37500772784, 21733.169109753613, 22829.40123765137, 22224.846341072873, 23112.494244515256, 22974.874652448307, 22953.75586817325, 20717.710673479232, 20113.602806087583, 23098.765035336248, 20107.495748496134, 23307.891714174337, 25815.21804593814, 27880.344353764944, 27251.917024631555, 28675.08013443587, 28457.362818628884, 29353.986919074763, 28303.602851871256, 28670.588406630588, 28453.797891716567, 31478.313503144367, 31349.37769581988, 32377.312035330528, 32605.423222849153, 32643.69612744426, 32345.070998264313, 30671.297704006087, 31170.74395853225, 30261.98125252615, 31392.136900960315, 30179.432734203423, 29707.63062944891, 30232.9571066337, 31745.3599470973, 30528.21893932752, 31618.37712446098, 32119.275543204647, 34156.030170812504, 33421.78957518888, 32257.890490915866, 29894.261183403854, 30413.20205511393, 26612.908526942316, 28053.771232003728, 30450.034741609896, 30804.470859392975, 29226.058727206433, 28657.951326748644, 28724.82622413301, 27373.278430105092, 29211.83353506838, 29873.97615508621, 32281.964303868772, 32485.227188355144, 30262.411198476362, 33985.30368754762, 37049.27755106715, 37319.67956432404, 38053.455856266206, 37753.083617527765, 38221.529670607735, 39278.95987319088, 41145.17590675916, 39712.3862490819, 38870.89432678004, 39394.88984879259, 41167.60900131046, 40486.36188766499, 45088.746122264834, 47156.290908735085, 48086.33613706644, 49403.88718029462, 43095.349976133526, 42120.691666939005, 43881.584206783016, 44195.468905302936, 42845.50807867589, 42967.23954966532, 42545.69313280439, 42086.88130660071, 41653.31461267764, 42701.00504236514, 43611.66831140811, 40208.71687038429, 41526.395419791144, 41924.817209891065, 42676.80175941122, 42349.625239299334, 42538.83095947525, 44338.12235673986, 45188.22165675832, 42917.55547760834, 41142.76577126279, 40934.06037940945, 41621.06316996656, 41853.052490080554, 41127.47952528912, 41009.158020430215, 41013.81101159447, 40776.411444820376, 42837.19475383176, 47231.891985470196, 48494.46906506285, 48873.381230211846, 49123.01416549992, 53064.37136026201, 49733.54863572977, 49005.03098419416, 49982.21367314918, 49982.21367314918, 44616.41431441383, 43528.76494535766, 44745.38960376443, 43629.84558918361, 46158.87398890632, 44330.94769227183, 42558.16280519645, 53364.4061550346, 52099.55588060334, 59277.775438589204, 59301.446255073504, 57034.44092147023, 62341.84331389978, 61899.537332209424, 61865.58645105266, 64393.12402835743, 64977.25999338858, 61309.228358139575, 64248.75525799909, 65713.97092189355, 70099.15758914474, 70916.47199670109, 75147.83437502728, 75209.1110103332, 77537.18068641491, 66854.77205098268, 61882.42026515628, 60404.39412478214, 61334.77126747, 66199.03100352659, 67671.22719190101, 66363.12323662867, 65327.72995302599, 68978.17048285416, 71176.3722859426, 69553.77700078167, 74908.14473766508, 66581.98940064099, 63682.88051834728, 63255.2862480907, 52917.50598800464, 66735.90814830098, 66946.03563630083, 68346.45392185771, 66469.06235533748, 56426.11302081768, 57464.30601987871, 51067.789401846254, 47774.41272320931, 60130.620598008005, 65016.55489807598, 69424.05708700245, 71247.25278131949, 71193.38158489545, 65608.79788923384, 67518.53731157661, 77493.483176915, 84712.75216407496, 88664.07483143527, 84189.79423088016, 88641.35509162185, 95689.54842838076, 94208.57845141589, 96939.61193654739, 104711.84508495047, 94091.5034234691, 87630.60136016831, 69965.94357080653, 132049.6555893966, 102171.91443324572, 168559.1234059676, 168826.60958260956, 220227.76674023838, 202935.70593183278, 212582.73520430853, 222733.27986123788, 262651.49943952623, 270137.1657819653, 264488.0388779229, 286992.81372170907, 317668.0876719059, 310105.8372266267, 327225.91129740083, 365163.823037346, 407477.69568980584, 391466.39580734295, 371909.84295968123, 387034.7622608223, 436529.6359073706, 420783.8568775588, 434782.68422753713, 459176.3125842184, 430617.9701435602, 400192.0101897378, 368778.5399162444, 363182.8262460227, 356183.39494413085, 427913.88809044316, 409149.91991586797, 382129.99224356795, 365017.09399050445, 391981.83342880534, 411033.41741324944, 393990.73713987897, 404034.0924530988, 445568.46735635365, 432353.33146882185, 428205.8950187679, 425433.60027985246, 496735.08710116975, 557822.2981238087, 589441.2562385434, 515449.55254318693, 539191.8120416754, 550348.7431326599, 525417.2896276655, 465865.94235302345, 419313.04154269106, 470636.7118949168, 468552.79276728316, 494960.45343803754, 528914.8971855565, 551646.3921881089, 546370.1608978889, 560889.3614115799, 525594.915394618, 522505.0481704421, 523900.22375753534, 561695.9432089042, 593924.0614762593, 593310.4152932244, 625404.888190079, 706067.508465599, 745878.750795929, 768398.0213596192, 746098.496162919, 758881.9796979938, 794765.2863317487, 879729.2013045724, 890875.4246620758, 868208.1752273135, 874158.4454771713, 941317.4422989596, 939078.9994272504, 993042.9898770744, 960719.2336078951, 909820.1779232995, 926479.5056286828, 934256.3685990325, 947640.4805091025, 973085.9612254199, 1051089.836701173, 1064983.3813647358, 1098735.5860756277, 1003655.8372627294, 947373.4471655281, 1012252.05466411, 927234.1190591101, 1063968.4425928327, 1043160.3651082295, 925369.3158899078, 923505.5794320831, 911491.7728038174, 911491.7728038174, 911926.763925288, 914924.8159015776, 896996.6118081613, 896996.6118081613, 896996.6118081613, 896996.6118081613, 966124.5069998682, 970372.4557036245, 948337.9673323855, 962729.8036972983, 929551.4737029183, 801535.7880520277, 735390.1090636681, 615731.4836723772, 622550.7916727234, 816994.78072304, 856655.3835624795, 966004.1146584367, 788205.1241820122, 1196571.1925911915, 1215946.4856781971, 1098344.7907645765, 1121450.6358255509, 1178365.714935472, 1274407.6368873687, 1289717.3131061345, 1444610.9732638986, 1260821.9977097118, 1212230.4755089304, 1219634.41122367, 1181165.883591108, 1072670.8180386703, 988504.8370286807, 959053.3595441235, 840947.6308668866, 852180.4656034223, 941858.8225733533, 909970.069652771, 919269.8566920809, 1031224.1447115801, 1061235.4525107245, 1062429.3789784168, 1026327.4785074883, 954937.2017567474, 950410.6437808877, 974185.5071552108, 953053.3733094281, 932987.1914549536, 947283.4425302489, 924272.8659093276, 967994.7830094581, 1026157.8973312442, 927516.7060185889, 933156.9725990173, 905931.9964756375, 847703.5039439677, 954238.7798510916, 989659.0622444549, 978778.085645098, 947512.9037922318, 832646.2475049107, 795474.5307501955, 791275.4778092128, 843613.6870345226, 913611.707049861, 911006.3546046871, 968432.5166407677, 935352.5549261866, 1022812.4053073414, 991235.0292283611, 1062670.3095654096, 1063381.316694621, 1146048.733305702, 1166675.4406320294, 1269997.604866095, 1094214.9131474034, 988786.2955655184, 916635.6023936088, 947566.158027797, 947137.0989365699, 901776.7408253662, 830808.1498197108, 765357.0932823127, 779298.2416215207, 872882.2089856382, 839440.5669315734, 707566.8216795076, 774937.4232014423, 862754.6653631977, 985811.9899882548, 992441.9325873957, 1044670.4729076449, 1078630.132992701, 1148922.259456338, 1179777.8101535086, 1264623.3490819612, 1245804.278929702, 1310181.8711922083, 1665765.393482467, 1780752.9192504296, 1931726.7162941452, 2198130.8824429363, 2018114.2070320202, 2494058.0883253636, 2843353.721119197, 2839709.8356837537, 2447888.19377911, 2398315.046358522, 2313444.0474528093, 2463493.593539403, 2222416.8316866374, 2222248.2731753783, 2247755.906232019, 2266309.467032479, 2451768.4477043226, 2336364.688865018, 2407184.0830562348, 3014186.5417815363, 3029080.1403825968, 2969789.9003855553, 2628606.404968419, 2756259.3343304507, 2655526.4900411298, 2392295.8379069795, 2210794.5421516392, 2035754.732179235, 2070319.9847339157, 2111656.6446482805, 2137226.1719525075, 2232693.730076047, 2187275.411230672, 2277695.3305096836, 2648563.1386202676, 2946135.6866711406, 2972776.5983433365, 3031371.3716013366, 2945922.1128901117, 2817801.046067318, 2701286.706637897, 3008043.62652097, 2878413.210591399, 3076011.626136356, 3212729.8836077866, 3109111.703381925, 2880086.572783993, 2798518.869950625, 2674029.701265607, 2608886.1537257303, 2650883.84025315, 2859896.7717943457, 3053849.57432952, 3079986.152497054, 3196253.829801236, 2897737.1894133156, 2822962.627863383, 2856255.120079493, 2834465.907728648, 2825957.1219920865, 2817451.4721334255, 2817451.4721334255, 2817451.4721334255, 2817451.4721334255, 2960910.3639921527, 2991025.4285650603, 3344966.761713529, 3161218.210198744, 3517819.4180313568, 3529778.5028901184, 3638825.524988969, 3853834.0954535245, 3875219.2878603023, 4136121.735645951, 4128424.680708378, 4134130.65528769, 4207189.2714333655, 4124322.947227565, 4222691.921978423, 3883983.01146416, 3977321.033490519, 4137185.696479517, 4280220.334738356, 4452378.236916138, 4473836.204718271, 4902897.363657456, 4890963.369864407, 4406645.185652653, 4650238.54661797, 4965627.916600019, 4820421.755640453, 4486576.919381069, 3842061.49808048, 4033101.057037792, 3963449.572046957, 3573875.9959905073, 3743416.975171878, 4125324.3040971616, 4438397.224973911, 4333923.048136504, 4835007.492834695, 4979294.863343997, 4281287.73601719, 4727213.992138749, 4987956.646955979];
+        const initialEq = 8000.0;
+        const spyReturn = 3.5943;
+        const spyValues = eqLabels.map((_, i) => initialEq * (1 + spyReturn * i / (eqLabels.length - 1)));
+
+        new Chart(document.getElementById('equityChart'), {
+            type: 'line',
+            data: {
+                labels: eqLabels.map(d => d.substring(0, 10)),
+                datasets: [
+                    {
+                        label: 'Strategy',
+                        data: eqValues,
+                        borderColor: '#58a6ff',
+                        backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1,
+                    },
+                    {
+                        label: 'SPY Buy & Hold',
+                        data: spyValues,
+                        borderColor: '#8b949e',
+                        borderDash: [5, 5],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.1,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    x: { display: true, ticks: { maxTicksLimit: 12 } },
+                    y: { display: true, ticks: { callback: v => '$' + v.toLocaleString() } }
+                }
+            }
+        });
+
+        // === DRAWDOWN ===
+        const ddValues = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.11, 0.0, 0.0, -3.64, -5.01, -5.93, -11.44, -13.89, -13.89, -13.89, -15.26, -13.61, -13.79, -8.93, -7.24, -6.77, -11.58, -12.48, -13.07, -18.0, -19.03, -18.35, -18.83, -19.1, -14.66, -11.92, -13.46, -16.88, -17.28, -16.46, -18.68, -17.27, -17.76, -19.55, -19.93, -17.31, -18.15, -15.88, -13.59, -13.9, -10.63, -8.69, -7.2, -17.18, -23.08, -24.78, -21.82, -27.86, -25.24, -15.79, -17.47, -24.12, -24.51, -20.41, -14.12, -12.17, -2.57, -0.12, 0.0, 0.0, -1.49, 0.0, -3.08, -5.92, -1.88, -3.29, -9.38, -12.67, -13.94, -19.47, -23.91, -27.72, -19.36, -15.48, -22.36, -16.12, -14.02, -4.36, -9.76, -6.54, -7.35, 0.0, -3.36, 0.0, 0.0, -6.06, -4.22, 0.0, 0.0, 0.0, -1.77, -3.91, -4.21, -15.74, -11.16, 0.0, -0.3, 0.0, -9.32, -1.21, -2.94, 0.0, -2.28, -0.49, -4.32, -0.5, -1.09, -1.43, -11.03, -13.62, -0.8, -13.65, 0.0, -0.42, 0.0, -2.25, -0.23, -0.98, 0.0, -7.86, -6.67, -7.37, 0.0, -5.33, -2.22, -1.53, -1.42, -2.32, -7.38, -5.87, -8.61, -5.2, -8.86, -10.29, -8.7, -4.13, -7.81, -4.52, -6.7, -0.78, -2.91, -6.94, -13.76, -12.26, -23.23, -19.07, -12.16, -11.13, -15.69, -17.33, -17.13, -21.03, -15.73, -13.82, -6.87, -6.29, -12.7, -1.96, 0.0, -2.6, -0.69, -1.47, -0.25, -0.23, 0.0, -6.65, -8.62, -7.39, -3.23, -4.83, 0.0, 0.0, -0.77, -0.9, -13.55, -15.51, -11.98, -11.35, -14.06, -13.81, -14.66, -15.58, -16.45, -14.35, -12.52, -19.35, -16.7, -15.9, -14.39, -15.05, -14.67, -11.06, -9.36, -13.91, -17.47, -17.89, -16.51, -16.05, -17.5, -17.74, -17.73, -18.21, -14.07, -5.26, -2.72, -2.9, -2.41, 0.0, -6.28, -7.65, -5.81, -5.81, -15.92, -17.97, -15.68, -17.78, -13.01, -16.46, -19.8, 0.0, -5.95, -0.13, -2.57, -6.3, 0.0, -1.54, -1.59, -0.13, -0.86, -6.46, -1.98, -0.98, -0.79, -1.73, 0.0, -0.01, -0.46, -14.17, -20.55, -22.45, -21.26, -15.01, -13.12, -14.8, -16.13, -11.44, -8.62, -10.71, -3.83, -14.52, -18.24, -18.79, -32.06, -14.32, -14.05, -12.26, -14.67, -27.56, -26.23, -34.44, -38.67, -22.8, -16.53, -10.87, -8.53, -8.6, -15.77, -13.32, -0.51, 0.0, 0.0, -5.05, -0.03, -1.66, -3.81, -11.48, -4.39, -14.67, -20.53, -36.55, 0.0, -27.9, 0.0, 0.0, 0.0, -13.65, -9.54, -5.22, -2.07, -0.23, -9.65, -1.96, 0.0, -2.38, -3.68, 0.0, 0.0, -3.93, -8.73, -5.02, -4.24, -7.69, -4.62, -3.14, -15.14, -21.13, -27.32, -28.43, -29.81, -15.67, -19.37, -24.69, -28.06, -22.75, -19.0, -22.35, -20.38, -12.19, -14.79, -15.61, -16.16, -2.11, -2.0, -2.29, -14.56, -10.62, -8.77, -12.9, -22.77, -30.49, -21.98, -22.33, -17.95, -12.32, -8.56, -9.43, -7.02, -12.87, -13.39, -13.15, -6.89, -1.55, -1.65, -2.42, 0.0, 0.0, -0.76, -3.64, -1.99, 0.0, 0.0, -2.38, -4.86, -4.21, 0.0, -2.33, 0.0, -3.26, -8.38, -6.7, -5.92, -4.57, -2.01, 0.0, -3.13, -2.2, -10.66, -15.67, -9.9, -17.46, -5.29, -7.15, -17.63, -17.8, -18.87, -18.87, -18.83, -18.56, -20.16, -20.16, -20.16, -20.16, -14.0, -13.63, -15.59, -14.31, -17.26, -28.65, -34.54, -45.19, -44.59, -27.28, -23.75, -14.01, -29.84, -0.46, 0.0, -9.67, -7.77, -3.55, 0.0, -7.03, -2.33, -14.76, -18.04, -17.54, -20.14, -27.48, -33.17, -35.16, -43.14, -42.38, -36.32, -38.48, -37.85, -30.28, -28.25, -28.17, -30.61, -35.44, -35.74, -34.14, -35.56, -36.92, -35.95, -37.51, -34.55, -30.62, -37.29, -36.91, -38.75, -42.69, -35.48, -33.09, -33.82, -35.94, -43.7, -46.22, -46.5, -42.96, -38.23, -38.41, -34.52, -36.76, -30.85, -32.98, -28.15, -28.1, -22.52, -21.12, -14.14, -26.02, -33.15, -38.03, -35.94, -35.96, -39.03, -43.83, -48.25, -47.31, -40.98, -43.25, -52.16, -47.61, -41.67, -33.35, -32.9, -29.37, -27.07, -22.32, -20.24, -14.5, -15.77, -11.42, 0.0, -0.05, 0.0, -3.3, -19.5, -3.51, 0.0, -2.65, -16.08, -17.78, -20.69, -15.55, -23.81, -23.82, -22.94, -22.31, -15.95, -19.91, -17.48, -0.89, -4.49, -6.36, -17.12, -13.09, -16.27, -24.57, -30.29, -35.81, -34.72, -33.42, -32.61, -29.6, -31.03, -28.18, -16.49, -7.11, -6.27, -4.42, -7.11, -11.15, -14.83, -5.15, -9.24, -3.01, -0.07, -8.15, -14.92, -17.33, -21.0, -22.93, -21.69, -15.51, -9.78, -9.01, -5.58, -14.4, -16.61, -15.62, -16.27, -16.52, -16.77, -16.77, -16.77, -16.77, -12.53, -11.64, -1.18, -6.61, 0.0, -0.73, 0.0, 0.0, -4.88, 0.0, -0.25, -2.41, -2.15, -4.08, -1.79, -9.67, -7.5, -3.78, -0.46, 0.0, -1.33, 0.0, -3.38, -12.95, -8.14, -1.91, -6.38, -12.86, -25.38, -21.67, -23.02, -30.59, -27.3, -19.88, -13.8, -15.83, -6.09, -3.29, -16.85, -8.19, -3.12];
+        new Chart(document.getElementById('drawdownChart'), {
+            type: 'line',
+            data: {
+                labels: eqLabels.map(d => d.substring(0, 10)),
+                datasets: [{
+                    label: 'Drawdown %',
+                    data: ddValues,
+                    borderColor: '#f85149',
+                    backgroundColor: 'rgba(248, 81, 73, 0.15)',
+                    fill: true,
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { maxTicksLimit: 12 } },
+                    y: { ticks: { callback: v => v.toFixed(0) + '%' } }
+                }
+            }
+        });
+
+        // === SETUP PIE ===
+        const setupNames = ["EP", "HTF"];
+        const setupCounts = [930, 1382];
+        new Chart(document.getElementById('setupPie'), {
+            type: 'doughnut',
+            data: {
+                labels: setupNames,
+                datasets: [{
+                    data: setupCounts,
+                    backgroundColor: ['#58a6ff', '#3fb950', '#d29922', '#f85149', '#bc8cff'],
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // === SETUP BAR ===
+        const setupWR = [49.0, 51.7];
+        const setupR = [1.61, 0.92];
+        new Chart(document.getElementById('setupBar'), {
+            type: 'bar',
+            data: {
+                labels: setupNames,
+                datasets: [
+                    { label: 'Win Rate %', data: setupWR, backgroundColor: '#3fb950' },
+                    { label: 'Avg R-Multiple', data: setupR, backgroundColor: '#58a6ff' },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // === R-MULTIPLE DISTRIBUTION ===
+        const rValues = [-0.8, -1.0, -0.4, -1.0, 0.8, 2.1, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.8, 1.6, -0.0, -1.1, -1.0, 2.7, -0.0, 0.2, 5.5, 2.1, 2.9, 0.4, -1.0, 0.1, 0.2, 0.6, 0.2, 0.2, -0.1, 0.4, -1.1, 1.9, -0.0, -0.2, -0.5, -0.2, 0.5, 0.7, 2.2, 2.6, -1.0, -1.0, 2.3, 1.6, 7.6, -1.0, -1.0, -1.0, -1.0, -0.3, -1.1, 0.9, -1.0, 5.3, -0.1, -0.2, 1.9, 1.7, 2.3, -1.1, 5.8, 2.2, 0.2, 2.3, 2.0, 0.4, 0.8, 1.1, 1.0, 1.3, 1.8, 0.9, 0.0, -0.2, -1.0, -1.0, 1.2, -1.0, -1.0, -1.0, 1.2, -1.0, 0.1, -0.2, -1.1, -1.0, -0.7, 3.2, -1.0, -1.0, -1.1, -1.0, -1.0, -1.0, 0.2, 0.8, 0.3, 0.1, 3.2, 5.4, 4.7, -1.0, 2.1, 2.1, -1.0, 5.8, -1.0, -1.0, -1.0, 2.1, 2.0, -1.0, 3.3, 2.5, 9.4, 3.0, 2.1, 1.9, -1.0, -1.0, 1.8, 2.5, 2.2, -1.0, -0.1, -0.3, -1.1, 5.8, 3.7, 0.8, 1.3, -1.0, -0.9, -0.2, -1.0, -0.1, 2.1, 13.3, 10.3, -1.0, -1.0, -1.0, -0.5, 3.3, -1.0, -1.0, -1.0, -1.1, 4.0, 2.4, 7.4, 4.2, 1.8, -1.0, 0.2, -0.2, -1.0, -1.0, 2.0, 3.0, 2.6, 2.1, 5.1, 2.3, -0.2, -0.3, 2.6, 2.0, -0.4, -1.0, 5.3, -0.1, 2.1, 5.0, 0.1, -0.1, 2.5, -0.1, -1.0, -1.0, -1.0, 2.2, 2.4, -1.1, 3.5, 4.5, 5.1, 5.1, -1.1, -1.0, 2.1, 1.3, 2.1, 0.8, -1.0, -0.0, -0.2, -1.0, -1.0, 2.7, 1.3, 1.2, 2.0, 3.3, -1.0, -0.3, 0.2, 1.4, -1.0, 5.3, 3.5, 4.5, -1.0, -0.1, -1.1, -1.1, -1.0, -1.0, 1.7, -1.0, -1.0, -1.1, -1.1, -1.0, 8.7, -1.0, -1.1, 4.1, -0.3, 2.3, 0.3, 2.2, -0.4, -1.1, 4.2, 5.3, -0.7, -1.0, 5.0, 2.6, -0.3, -1.1, -1.0, 1.3, 5.2, 7.9, 5.3, 4.0, 0.1, 0.5, 1.3, 2.2, -0.0, 0.1, 2.2, -0.6, -0.6, -0.5, -1.0, -1.0, 1.3, 6.3, -1.0, -1.0, 3.6, 5.4, -1.0, -1.0, -0.8, -0.5, 0.3, -1.0, -1.1, 0.9, 2.0, -1.0, -0.5, 10.3, 0.8, -0.1, -1.0, -0.4, 2.2, -1.1, 1.6, -0.4, -0.2, 0.7, 2.0, 2.6, 2.3, 2.0, -1.1, -1.0, 0.1, 2.1, 5.0, 2.2, 2.9, 137.0, 5.1, 5.5, 1.5, 2.1, 2.1, 4.2, -0.2, 2.1, 2.3, 2.0, -1.0, -0.1, -1.0, 2.1, -0.6, 0.5, 1.3, 0.0, -1.0, -1.0, 0.3, 0.8, -1.0, 6.8, 7.3, -1.0, -0.8, -0.6, 3.0, -0.3, 6.0, -1.0, 5.7, 5.7, -0.4, 5.8, -1.0, 0.6, 2.4, -0.2, -1.0, 0.4, 5.9, 2.5, -1.0, -1.0, 0.1, -0.8, -1.0, 2.1, -1.0, 15.2, -0.4, -1.0, 5.1, -1.0, -1.0, 0.0, 2.1, 2.1, -0.4, -0.4, 2.3, 1.1, -0.4, -1.0, 0.6, -1.0, 1.8, -0.0, 1.8, 1.4, -0.7, -1.0, 2.3, 0.3, 2.4, 2.1, -0.1, -1.0, 0.1, 1.9, -0.8, -0.1, -1.0, 2.1, -1.0, 2.4, 2.2, 0.1, 2.3, -0.4, 1.5, 0.0, -1.0, -1.1, 1.9, 2.1, -0.6, -0.4, 0.7, 1.0, 5.4, 4.0, -1.0, -1.0, -1.1, 2.7, 2.5, -0.1, -1.1, -1.0, -1.0, 2.0, 3.0, -0.3, -0.2, 2.0, -0.3, 0.1, -1.0, -1.0, 2.0, 2.5, 5.3, 2.3, -0.0, 5.1, 1.2, 2.5, 5.1, 0.4, -1.0, 4.1, -1.0, 2.2, -1.0, -1.0, 5.9, -1.0, 0.3, -0.1, -0.6, -1.0, 0.0, -1.0, -0.7, -0.5, -0.3, -0.2, 0.2, -1.0, -1.0, 2.4, -1.0, -1.0, -1.0, 0.6, -0.4, -0.4, -1.0, -0.2, 5.6, 2.7, 2.2, -1.0, -1.0, -1.1, 5.1, 2.3, -1.1, 5.0, -0.4, 5.3, 3.9, -0.6, 2.6, -0.0, 2.3, 2.1, -1.0, 0.1, -1.0, 2.1, 3.6, -1.0, -1.0, 5.2, -0.1, -1.0, 2.0, 0.8, -0.6, 1.0, 0.9, -1.0, 1.3, 0.4, 3.2, 3.6, -1.0, -1.0, -1.0, -1.0, -1.0, 0.2, -0.1, 2.4, 0.1, -0.1, -0.0, -1.0, -1.0, -0.0, 2.0, 0.4, 2.1, 0.2, -1.0, -0.1, -1.0, -1.0, -1.0, 1.5, 2.8, -0.2, 1.0, -1.0, 0.5, -1.0, -0.7, -1.0, 2.3, 2.0, 1.5, 2.4, 2.9, 2.4, 3.9, 2.0, 2.0, 5.7, -1.0, -0.0, -0.0, -1.0, 2.6, -1.1, 2.2, 1.1, 0.9, 2.4, -0.1, 5.7, -0.4, -1.0, 2.2, 16.6, -1.0, -1.0, 6.5, 6.5, 6.0, -1.0, 1.7, 2.3, -1.0, -1.0, 1.8, 4.1, 1.6, 1.4, -1.0, -1.0, -1.1, -1.0, -1.0, -1.0, -2.0, -0.2, 1.4, -0.1, 0.5, -1.0, -1.0, -1.0, -1.1, 4.8, 19.0, -1.0, -1.1, -1.0, 3.4, 21.7, -0.3, -0.1, 0.5, 0.1, 2.7, -0.2, -1.0, -0.1, -1.1, 2.5, -1.0, 2.1, 0.6, 2.4, 5.2, -1.1, 3.1, -0.1, 2.1, 3.6, 2.0, 1.0, -0.9, 0.7, 2.5, -1.0, 1.1, 2.1, 6.3, 2.0, -0.4, 2.5, 2.4, 2.2, -0.2, -1.0, 2.1, 2.2, 1.7, -1.0, 0.3, 3.1, 2.7, 0.5, -1.0, 5.8, -1.0, 2.0, -0.0, -0.1, -1.0, 0.8, 0.7, 0.5, -1.0, -1.0, -1.0, 0.4, -1.0, 1.4, -1.0, -1.0, 2.1, -1.1, 0.8, -1.1, 0.5, 2.2, 0.4, -0.2, 2.1, -0.1, -0.6, -1.0, -1.1, -1.1, -1.1, 2.1, -1.0, 0.5, 1.2, -1.1, -0.5, 5.4, -1.0, 1.7, 0.9, -1.0, -1.0, 3.8, -0.3, -1.0, -0.1, -1.0, -0.0, -1.1, -1.0, -1.0, -1.0, 3.9, -0.0, -0.8, 10.0, 2.2, -0.1, -0.2, 0.9, -0.3, -0.9, -1.0, -1.0, -1.0, -1.0, -1.1, -0.7, -1.0, 3.4, -0.6, -0.3, 2.3, 2.1, 2.0, 4.2, 5.5, -1.0, 4.1, 2.7, -1.0, 2.2, 2.1, -1.0, 5.3, 2.6, 4.2, 3.0, 2.0, 2.2, -1.0, 0.5, -1.0, 1.2, -0.3, 0.1, 3.7, 2.0, 3.5, 3.1, 2.2, -1.1, -0.7, -0.0, 1.6, -1.0, -1.0, -1.0, 1.5, 5.2, 2.2, 5.4, 5.1, 5.0, 2.0, 2.2, 2.3, -1.0, 2.1, 0.8, 2.1, -1.0, -0.1, 5.2, -1.0, 5.0, 2.1, 0.9, 2.3, -1.0, 4.4, 4.4, 3.0, -1.0, -1.0, -1.0, -1.0, 4.5, -0.1, 2.4, -1.1, 2.3, 5.2, 5.5, 3.6, -0.7, 2.2, 5.8, 2.8, -1.0, -0.1, 0.5, -1.0, -1.0, -1.0, -0.0, -1.1, 3.7, -1.0, -1.0, -1.0, -1.0, -1.0, 38.8, 0.4, -1.0, -1.0, 1.5, 0.7, 3.0, 42.6, -1.0, -1.0, -1.0, 3.2, 7.0, -1.0, -1.1, -1.0, -1.0, -1.1, -1.0, -1.0, 2.5, 10.7, 2.9, -0.2, 2.5, 2.5, 0.1, -1.0, -1.0, -0.3, 5.3, -1.1, -1.0, -1.0, -1.0, -0.3, 4.1, 2.0, -1.0, 4.0, -0.2, 0.2, 5.4, 2.1, 2.3, 2.3, 2.1, -1.1, 2.0, -1.0, 2.1, 1.9, 0.8, 0.2, -0.0, -0.0, -1.0, 5.3, 2.2, -1.0, 4.6, 6.0, 2.0, 2.7, 2.1, 0.6, 0.4, 0.2, 1.1, -1.0, 0.1, 2.2, -1.1, 2.2, 2.3, 2.0, -0.5, 1.2, 0.1, -1.1, 1.6, -0.0, 0.2, -0.1, -0.1, 5.2, 2.0, 4.4, 2.2, 5.5, 2.2, 2.8, -1.0, 5.2, 9.8, 1.9, 1.1, -0.0, 0.2, -0.1, -0.0, 2.1, 0.4, -0.1, 4.5, -0.3, 4.6, 0.3, -1.0, -1.0, -0.2, -1.0, -1.0, 8.7, -0.3, 2.6, 5.1, -1.0, -1.0, -0.0, 0.6, 0.1, -1.0, 2.1, 3.2, -0.3, 2.8, -1.0, -1.1, 2.5, 2.2, 2.2, 5.6, 1.0, -0.3, 2.4, 0.1, 2.9, 15.3, 6.9, -0.0, -0.2, -1.0, -1.0, -1.0, 2.2, 0.8, 1.4, -0.1, -1.0, -1.0, 0.2, 2.3, 2.4, 2.1, -0.0, -0.1, -1.1, 0.8, 0.4, -1.0, 2.1, 1.0, -1.0, -0.4, -0.2, 2.9, -1.0, -0.1, 0.3, -0.2, -0.6, 0.9, 0.0, -0.5, -0.4, -1.0, -1.0, -1.1, 5.6, -1.1, -0.2, 0.9, -1.0, -1.0, -1.1, -1.0, 3.8, 2.0, -0.1, -1.1, -1.0, 1.2, -0.7, -1.0, -0.5, -1.0, 2.4, -0.6, -0.2, -1.0, 19.4, 3.1, -0.6, 2.0, -1.0, -1.0, 3.3, 1.4, -1.0, -1.0, 0.5, -0.7, 2.0, 0.6, 3.4, 3.6, 2.1, 2.2, 3.9, 2.1, -0.2, 5.4, 6.4, 2.1, 2.1, 2.1, 0.4, 3.6, -1.0, 0.3, -1.0, -1.0, 3.1, 0.9, 0.3, 2.6, 0.7, -1.0, 2.4, 35.3, 2.1, 2.2, -1.0, -1.0, 85.4, 7.2, -0.3, 0.7, 0.1, 0.8, 0.2, 1.2, -1.0, -0.3, -1.0, -1.0, 2.2, -1.0, 1.0, -1.1, -1.0, -1.0, -1.1, -1.0, 2.1, 0.0, -1.1, 2.0, 1.1, 1.9, 2.1, 4.5, -0.0, -1.0, -1.0, -1.0, -1.0, 13.1, 2.0, 2.0, 0.1, 3.2, -1.0, 1.0, 2.1, -1.0, 2.2, 5.7, 2.3, 2.0, 0.9, 0.9, -0.3, -1.0, 1.0, -0.6, -0.8, 4.3, 0.2, 4.4, 0.8, -0.6, 1.3, 0.5, -1.0, -1.1, 1.8, 3.9, 0.6, -0.1, -0.2, -0.4, -1.0, -1.0, -0.0, 2.0, -1.0, -1.0, -1.0, -1.0, 0.3, 0.6, -0.4, -0.6, -1.0, -0.4, 2.2, 2.5, 2.0, 2.0, 2.1, 2.1, 2.3, -0.8, -1.0, 2.2, -0.5, 3.4, 2.1, 5.3, 0.9, 1.7, -1.0, 1.0, 2.0, -1.0, -0.4, 4.4, 2.5, 3.1, 2.8, 3.7, 1.8, 1.3, -1.0, -1.0, -0.5, -1.0, 2.5, -1.0, -1.0, 2.1, 2.7, 2.4, 5.7, 1.9, 2.1, 2.6, 1.7, 2.5, -1.0, -1.0, 1.2, -0.0, -0.3, -1.0, -1.0, 0.1, 1.1, 1.6, -0.4, 2.5, 5.5, -1.0, 5.2, -1.1, -0.6, -0.5, 2.0, -0.3, -0.1, 2.4, 2.5, 2.3, 0.4, -0.5, -0.3, 0.6, -0.0, -0.6, -0.4, 0.1, 4.2, -0.0, 2.1, 2.3, 2.7, -1.0, 2.0, 7.7, 5.0, -0.1, -0.1, -1.0, 2.1, 0.1, 1.2, -0.5, -1.0, -1.0, 2.0, 4.2, -0.2, -0.3, 5.7, -1.0, 0.9, 0.1, -0.0, -1.0, 2.1, 7.1, 4.5, -0.4, -1.0, -1.0, -1.0, -0.7, -0.5, 1.0, 0.1, -1.0, -1.0, 0.1, -0.3, -0.3, -0.3, -1.0, 2.2, -1.0, 2.8, 9.9, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.2, 2.4, 2.2, 2.1, 2.1, 1.3, 0.6, -0.2, 2.3, -0.0, -1.0, 0.4, -0.1, -1.0, -1.0, -1.0, -0.9, -0.2, -1.0, -0.5, -1.0, -0.1, 0.0, 0.2, 0.1, 4.9, 1.5, -1.1, 0.3, -1.0, -1.0, -0.0, 3.9, 6.1, 2.3, 1.6, -1.0, 2.5, 2.7, 1.3, -0.1, 4.6, 4.3, 4.3, 0.1, -0.2, -1.0, -1.0, -0.2, 2.2, -0.1, 0.0, 0.4, 0.9, 0.5, 0.5, -1.0, -1.0, -1.0, 0.3, -1.0, -1.1, -1.0, -1.0, -1.1, -1.0, -1.0, -0.0, -1.0, -1.0, -1.0, -1.0, -0.2, 4.3, 2.8, 4.8, 3.3, 1.5, -1.0, -1.0, -1.0, -1.0, -1.0, 3.3, 5.2, 4.8, 5.5, 7.5, -0.5, -0.1, -0.6, 2.4, -1.0, 2.7, 2.2, 1.4, -1.0, -1.1, 2.5, -0.3, -1.0, -0.2, -1.0, 1.1, -1.0, 5.0, 2.1, -1.0, -1.0, -0.0, -1.0, -1.1, 0.3, 14.8, 0.4, -0.4, -1.0, 5.2, -1.0, -1.0, 2.4, -0.2, -0.6, -0.1, -1.0, 0.2, -1.0, -1.0, -0.0, -1.1, -1.0, -1.1, -1.0, 2.0, -1.1, -1.0, -1.0, 0.5, -1.1, 2.0, 7.5, 2.8, -1.0, -0.3, -1.0, 4.7, 2.1, 5.6, 5.6, 2.6, 15.8, 10.8, 2.6, 0.4, -1.0, 0.9, -1.0, -1.0, -1.0, -1.0, -1.0, 2.1, -1.1, 2.0, -0.5, -0.6, 0.1, 0.9, -1.0, -1.0, -1.0, -1.0, 3.7, -0.5, -0.3, -0.3, -0.6, -0.5, 1.8, 0.0, -0.5, -1.0, 0.1, -1.0, -1.0, -0.3, 1.3, -1.0, -1.0, 2.2, 2.4, -1.0, -1.1, 2.0, 2.1, 2.2, 2.1, -1.0, -0.1, 2.3, 5.0, 0.8, -1.0, -1.0, 1.5, 0.2, -0.4, 2.1, 3.0, 2.1, 0.0, -1.0, -1.0, 1.2, -1.0, 0.2, -1.0, -1.1, -1.0, -0.0, -1.0, 2.0, -1.0, -1.1, -0.6, 0.0, 0.6, 1.0, 1.2, -1.0, -1.0, -0.4, -0.3, -0.2, -0.1, 1.6, 1.7, 0.6, 2.5, -1.0, -1.0, -1.0, 1.1, -0.2, -0.7, 1.1, 2.0, -1.0, -0.1, -1.0, -1.0, -1.1, -0.0, 1.2, -1.1, -0.5, -0.6, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 2.5, -0.1, 0.7, 2.4, 0.3, -1.0, -1.1, -1.0, 5.3, -1.0, -1.0, 2.1, 3.5, 5.0, 2.2, -1.0, -1.0, -1.0, -0.0, -1.0, 2.0, -1.0, 2.9, 2.5, 2.3, 2.9, -0.4, 1.1, 1.6, 0.2, -1.0, -1.0, 1.1, -0.4, 2.2, -0.6, 0.5, 2.0, -0.4, 0.1, 2.1, -0.0, 5.3, 5.6, 2.4, 5.4, 2.0, 0.2, -1.0, 1.6, 2.4, 0.0, 2.2, -0.4, 7.7, 7.7, 6.0, 6.0, 6.2, 0.6, 2.5, 2.4, 1.1, 0.6, -1.0, -0.1, -1.0, 2.2, 0.1, 0.1, -1.0, 6.9, 3.9, -1.0, -1.0, -1.1, 2.5, 3.7, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.1, -1.0, -1.0, -0.8, -0.6, -0.3, 0.5, 1.0, 0.8, -1.0, 4.4, -1.1, 2.1, -0.0, -0.5, -0.3, -0.3, -1.0, -1.0, -0.0, -0.4, -0.4, -1.0, -1.0, -1.0, -1.0, -0.8, -1.0, -1.1, -1.0, 0.2, -1.0, 2.6, 2.9, 1.1, -0.3, -1.1, 0.7, -1.0, -1.0, -1.0, -1.1, 2.1, 5.2, 2.5, 2.7, 7.8, 3.8, 8.3, -1.0, -1.0, 5.1, 2.4, 3.8, 2.0, -0.5, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -1.0, -0.7, -1.0, 2.2, 2.0, 2.0, 2.0, 2.1, 2.2, -0.0, 4.0, 0.7, 0.9, -0.4, 0.1, 2.7, 1.9, 5.2, 0.9, -1.0, 3.6, -1.0, -1.0, 1.2, 0.2, -0.7, -1.0, 2.7, 0.1, -1.1, 2.0, 5.2, 6.8, 2.2, -1.1, 2.9, -1.0, -1.0, -1.0, -1.0, -1.0, 2.0, 5.5, 2.1, 4.0, 3.1, -1.0, 3.4, 6.6, 2.7, 0.4, 0.8, -1.0, -0.0, 1.1, 0.3, -1.0, 4.2, 12.3, 2.0, 5.2, -1.0, 5.7, 1.2, -1.0, -1.0, -1.0, 23.0, 3.2, 2.0, -1.1, 2.7, -1.0, -1.0, 3.3, 4.2, 5.3, -1.0, 35.3, 2.0, -1.1, 0.3, 3.6, 0.8, 0.2, 0.2, 3.7, -1.0, 5.5, -1.0, -1.0, 2.6, -1.0, -1.0, -1.0, -0.6, -0.0, 0.5, 0.9, 1.7, 6.9, 13.1, -1.0, -1.1, -1.0, 2.5, 2.7, 2.9, -1.0, -1.0, 2.4, 0.1, 2.6, 0.1, -0.0, -0.2, -1.0, -1.0, -1.0, -1.0, 2.2, 7.2, 2.8, 0.3, 8.4, -1.0, 2.1, 3.6, 5.0, -1.0, 2.5, -0.1, 5.7, 3.3, -0.1, -0.5, -1.0, -1.0, 3.4, 2.5, 5.0, -0.4, -1.0, 0.6, -0.2, -0.4, 2.6, 3.6, -0.2, 0.4, 0.5, -1.0, -1.0, -1.0, -1.0, -1.1, -1.1, -1.0, -1.1, 13.7, 3.8, 1.4, 1.7, 0.1, -1.0, -1.0, -0.7, -1.0, -1.0, 2.3, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 2.1, -1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -1.0, 2.3, -1.0, 9.6, -1.0, -1.0, 0.5, -1.1, 5.2, -0.0, 2.0, 2.2, 2.5, 2.6, 3.8, 5.9, 2.4, 5.1, 2.1, 2.1, 2.4, 4.1, -1.0, -1.0, 0.9, -0.3, 5.1, -0.5, -1.0, 5.2, 0.4, -1.0, 2.2, 1.1, 2.4, 2.1, 5.0, 1.8, -0.0, 10.4, 12.5, 3.2, 2.0, -1.0, -0.2, 1.2, 1.0, 0.6, 0.2, -0.2, -1.0, -1.0, 0.1, 1.0, 6.0, -1.1, 2.0, -0.4, 1.4, -0.2, -1.0, -1.1, -1.0, -1.0, -1.0, -1.0, -1.0, -1.1, 5.3, -1.0, 1.9, -1.0, -1.1, -0.4, 2.1, 2.2, 0.4, -1.0, -1.1, -1.1, 3.0, -1.0, -1.0, 2.6, 2.1, 0.7, 5.6, -1.1, -1.0, 3.6, 1.8, 7.0, 7.2, 7.2, -1.1, 5.2, 2.1, 3.5, -1.0, -0.3, -0.2, -1.0, -1.0, -1.0, -0.8, -0.0, -1.0, 5.3, -0.3, -1.0, -0.1, 0.7, -0.2, -0.2, -1.0, -1.0, -1.0, 0.2, -1.0, -0.3, -1.0, -0.8, -0.5, -0.2, 0.5, 3.3, -0.0, 3.0, -1.0, 3.3, -1.0, -1.0, 3.7, 3.3, 2.0, 5.2, 2.4, 4.2, 5.5, 5.5, -1.0, -1.0, -1.0, 2.1, 1.6, -1.1, 0.0, 2.2, -1.0, -0.2, -1.0, 2.3, 1.2, -1.0, 1.0, -0.2, 2.1, -1.0, 1.4, 2.1, 2.5, -1.0, -1.0, -0.7, -0.6, -1.0, -1.0, -1.0, -0.0, 0.1, -1.0, 2.4, 5.5, -0.1, 1.3, 1.6, 3.4, -0.1, 5.5, 7.5, 2.7, 2.6, -1.0, 2.4, -1.0, 2.2, 2.6, 2.3, 2.6, 2.8, 2.4, 2.2, 5.2, 2.7, -1.1, -1.0, -1.1, 0.2, 1.8, 2.1, 0.1, -1.0, 2.1, 5.9, -1.0, 1.1, -1.0, -1.0, 6.6, 5.2, 2.3, -1.0, 1.0, 1.2, -0.0, 2.2, 2.4, -0.3, 2.1, -0.3, 0.8, -0.3, -1.0, 3.1, 2.2, -1.0, 5.9, 2.2, -0.6, -1.0, 6.4, 7.9, -0.1, -0.5, -0.1, -1.0, -1.0, 2.4, 5.0, 0.1, -1.0, -1.0, 1.4, 5.1, 2.5, 2.9, -1.0, -1.1, 2.3, 1.2, 2.1, 0.3, -0.3, -0.2, -1.0, 4.3, -0.1, -1.0, -1.0, 2.3, 0.5, 1.3, -1.1, -1.0, -1.0, -1.0, -1.0, 7.8, 1.1, -1.0, -0.5, 3.0, -1.0, 2.2, 3.0, 0.7, 2.3, -1.0, -1.0, -1.0, 5.7, 12.7, 3.8, 8.8, 16.1, -0.0, 0.3, -1.1, -1.0, 2.1, 14.6, 1.7, 2.1, 2.1, 5.2, 5.2, 3.6, -1.0, -1.0, -1.0, -1.0, -1.1, -0.6, 6.0, 5.4, 3.5, -1.0, -0.0, 4.8, 2.2, 2.9, 2.8, 0.5, 6.9, -0.5, 2.5, 2.2, 2.4, 3.0, -0.1, 2.7, 0.5, 5.0, 2.3, 9.3, 2.0, -0.7, 6.1, 2.8, 0.7, 2.3, -0.1, 5.4, 2.4, 1.6, 1.4, 1.4, -1.0, 6.3, 0.5, -1.0, 2.3, -0.4, 0.8, -1.0, -1.1, 2.9, 0.2, 0.6, 2.2, 5.8, 3.2, 0.1, 2.9, -0.1, 2.1, 2.1, 3.3, -0.2, -1.0, 0.6, -0.2, -1.0, -1.0, -1.1, 6.9, -0.0, -0.1, 9.1, -0.1, 0.1, 0.1, -1.0, -1.0, -1.0, 2.2, -1.0, 7.0, 1.0, 1.2, 0.5, -1.0, -1.0, 0.9, -1.0, 10.6, -0.3, -1.0, -1.1, -1.0, -1.1, -0.6, -1.0, -1.0, -0.1, -1.0, 5.2, -1.0, -1.0, -1.0, 0.1, -0.1, -1.0, -1.0, -1.0, 2.7, 6.1, 2.7, 8.9, 5.8, -0.4, -0.1, -0.5, -0.2, 2.4, 2.2, -0.4, -1.0, -1.0, -1.0, -1.0, -1.0, -0.4, -1.0, -1.0, 0.3, -1.0, -1.1, -0.1, -1.0, -1.0, 5.2, -0.3, -1.0, -1.0, -1.0, -1.0, 2.0, 0.9, -1.0, -1.0, -1.0, -1.0, 5.2, -0.9, 0.5, 0.9, 1.5, 5.8, 26.9, 6.5];
+        const rBins = {};
+        rValues.forEach(r => {
+            const bin = Math.max(-3, Math.min(10, Math.round(r)));
+            rBins[bin] = (rBins[bin] || 0) + 1;
+        });
+        const rLabels = Object.keys(rBins).sort((a, b) => a - b);
+        const rCounts = rLabels.map(k => rBins[k]);
+        const rColors = rLabels.map(k => k >= 0 ? '#3fb950' : '#f85149');
+
+        new Chart(document.getElementById('rDistChart'), {
+            type: 'bar',
+            data: {
+                labels: rLabels.map(r => r + 'R'),
+                datasets: [{ label: 'Count', data: rCounts, backgroundColor: rColors }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // === CYCLE PHASE ===
+        const phaseLabels = ["LATE_CONTRACTION", "EARLY_CONTRACTION", "LATE_EXPANSION_PEAK", "MID_EXPANSION", "TROUGH_ACCUMULATE", "EARLY_EXPANSION"];
+        const phaseCounts = [762, 516, 515, 481, 389, 388];
+        const phaseColors = [
+            '#f85149', '#d29922', '#3fb950', '#58a6ff', '#bc8cff', '#db6d28'
+        ];
+        new Chart(document.getElementById('cycleChart'), {
+            type: 'bar',
+            data: {
+                labels: phaseLabels,
+                datasets: [{
+                    label: 'Trading Days',
+                    data: phaseCounts,
+                    backgroundColor: phaseColors,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+    </script>
+</body>
+</html>
